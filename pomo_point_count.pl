@@ -64,6 +64,8 @@ sub print_day_stats(){
     my ($exp,$eff,$flag);
     my $today = $_[0];
     while(<TODOFH>){
+        # Match for total pomos expected for efficiency
+        if(/===== Expected Weekly Pomos: ([\d]+)/) { $texp = $1; }
         # Match for counting pomos
         if(/===== (.*) \[[\d]*:([\d]+).*/){
             if($1 eq $today){
@@ -76,7 +78,8 @@ sub print_day_stats(){
                     $eff = "0.00"
                 }
                 printf "\t%2s %15d %16s\t%11.02f\n",$points,$plan,$pomos,$eff;
-                $tplan += $plan; $tpoints += $points, $tpomos += $pomos; $texp += $exp;
+                $tplan += $plan; $tpoints += $points, $tpomos += $pomos; 
+                #$texp += $exp;
                 $plan = 0; $points = 0; $pomos = 0; 
                 close TODOFH;
                 return;
