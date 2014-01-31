@@ -14,7 +14,23 @@ development.
 <=== Sub App Descriptions ===>
     - ctimer.pl: 
         This is a perl script that captures the pomodoro style time tracking. 
-    - timetracker.rb:
+    - timetracker:
         This application is focused on tracking time as it relates to
         roles/projects/tasks. It uses YAML input/output to file in order to
         store the data.
+
+        - Notes on install, while in dev:
+            - Install bundler:
+
+                gem install bundler
+
+            - Install Dependencies of bunderl
+                
+                bundle install
+                
+                - Note this required me to have the dev libs for ruby on my machine
+            
+            - Execute timetracker with:
+                
+                bundle exec bin/timetracker
+
