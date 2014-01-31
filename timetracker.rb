@@ -93,7 +93,7 @@ class BrickTree
     def recordTime(bname, tstart, tend, tags)
         # Check that the parent node is in the tree
         raise "Brick node: #{bname} does not exist." unless @tree.has_key?(bname)
-        getBrick(bname, @root).recordTime(BrickTimeRecord.new(tstart, tend, tags))
+        #getBrick(bname, @root).recordTime(BrickTimeRecord.new(tstart, tend, tags))
         @tree[bname]['timeWorked'].push(BrickTimeRecord.new(tstart, tend, tags))
     end
 
