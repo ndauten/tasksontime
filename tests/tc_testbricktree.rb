@@ -2,7 +2,7 @@
 #
 
 require 'test/unit'
-require '../timetracker.rb'
+require '../brick_tree.rb'
 require 'yaml'
 
 class TestBrickTree < Test::Unit::TestCase
@@ -27,9 +27,9 @@ class TestBrickTree < Test::Unit::TestCase
         assert(@bt.hasChild("c11","c111"))
 
         now = Time.now
-        @bt.recordTime("c11", now - 10, now, [])
+        @bt.recordTime("Test task.", "c11", now - 10, now, [])
         now = Time.now
-        @bt.recordTime("c11", now - 10, now, [])
+        @bt.recordTime("Test task.", "c11", now - 10, now, [])
         
         File.open(@test_file_name, 'w') {|f| f << @bt.to_yaml }
     end
@@ -52,7 +52,7 @@ class TestBrickTree < Test::Unit::TestCase
         assert(newtree.hasChild("s2","c4"))
 
         now = Time.now
-        newtree.recordTime("c3", now - 10, now, [])
+        newtree.recordTime("Test task1", "c3", now - 10, now, [])
     end
 
     def test_brick_add_time
@@ -63,7 +63,7 @@ class TestBrickTree < Test::Unit::TestCase
     end
 
     def test_print_btree
-        @bt.printTree("root", 0)
+        @bt.prettyPrint("root", 0)
     end
     
     def test_print_yaml
