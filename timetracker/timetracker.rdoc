@@ -1,0 +1,5 @@
+= timetracker
+
+Generate this with
+    timetracker rdoc
+After you have described your command line interface
