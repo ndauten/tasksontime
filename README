@@ -1,0 +1,16 @@
+#===============================================================================
+# File:     README
+# Author:   Nathan Dautenhahn
+# Date:     January 31, 2014
+#===============================================================================
+
+<=== Overview ===>
+
+This repository contains several scripts that I have used to do time management
+tasks. I plan to eventually incorporate them all into a single application, but
+they are each experiements, some with mature development, other with minimal
+development.
+
+<=== Sub App Descriptions ===>
+    - ctimer.pl: 
+        This is a perl script that captures the pomodoro style time tracking. 
