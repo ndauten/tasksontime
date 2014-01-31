@@ -1,6 +1,8 @@
 #!/usr/bin/ruby
 #
 
+require 'yaml'
+
 class BrickTimeRecord
     attr_writer :startTime, :startTime, :name
     @startTime = 0
@@ -42,24 +44,57 @@ class BrickTree
     def initialize()
         @root = Brick.new("root", "", ["all"])
         @tree = Hash.new
-        @tree["root"] = {'brick' => @root, 'children' => {} }
+        @tree["root"] = {
+            'brick' => "root", 
+            'parent' => '', 
+            'tags' => ["all"], 
+            'timeWorked' => [], 
+            'children' => [] 
+        }
     end
 
-    def createBrick(parent, child, tags)
-        newBrick = Brick.new(child,parent,tags)
+    def addBrick(bname, parentName, tags)
         # Check that the parent node is in the tree
-        raise 'Parent node does not exist.' unless @tree.has_key?(parent)
-        @tree[parent]["brick"].addChild(child)
-        @tree[parent]['children'] = { "brick" => newBrick, 'children' => {} }
-        @tree[child] = newBrick
+        raise "Parent node: #{bname}  does not exist." unless @tree.has_key?(parentName)
+
+        # Now add the data to the objects of the parent and create the child
+        #parentBrick = getBrick(parentName, @root) # @tree[parentName]["brick"]
+        #newBrick = Brick.new(bname, parentBrick, tags)
+        #parentBrick.addChild(newBrick)
+
+        # Update @tree indexing structure -- playing around a bit here with the
+        # hash as a full representation of the tree and data.
+        @tree[parentName]['children'].push(bname)
+        @tree[bname] = {
+            'brick' => bname, 
+            'parent' => parentName, 
+            'tags' => tags, 
+            'timeWorked' => [], 
+            'children' => [] 
+        }
     end
 
-    def addBrick(b)
+    def getBrickFromName(bname)
+        getBrick(bname, @root)
+    end 
+
+    def getBrick(bname, bnode)
+        #puts "Checking bnode: #{bnode.name} for match..."
+        return bnode if (bname == bnode.name)
+
+        bnode.children.each {|key, b|
+            return getBrick(bname, b)
+        }
+
+        return false
+    end
+
+    # This function adds a brick time instance to the brick of the given name
+    def recordTime(bname, tstart, tend, tags)
         # Check that the parent node is in the tree
-        raise 'Parent node does not exist.' unless @tree.has_key?(b.parent.name)
-        @tree[b.parent.name]["brick"].addChild(b)
-        @tree[b.parent.name]["children"][b] = b
-        @tree[b.name] = {"brick" => b, "children" => b.children}
+        raise "Brick node: #{bname} does not exist." unless @tree.has_key?(bname)
+        getBrick(bname, @root).recordTime(BrickTimeRecord.new(tstart, tend, tags))
+        @tree[bname]['timeWorked'].push(BrickTimeRecord.new(tstart, tend, tags))
     end
 
     def isBrick(b)
@@ -69,19 +104,18 @@ class BrickTree
     def hasChild(parent,child)
         # TODO: Need an exception here for parent does not exist 
         raise 'Parent node does not exist.' unless @tree.has_key?(parent)
-        @tree[parent].children.include?(child)
+        @tree[parent]['children'].include?(child)
     end
     
-    def to_s
-        @tree.each { |key,val|
-            puts val
+    def printTree(name, level)
+        print "  --+"*(level), "#{name}:\n"
+        @tree[name]['children'].each { |brickName|
+            printTree(brickName, level+1)
         }
-        #root = @tree["root"]
-        #root.children.each { |brickName|
-            #puts brickName
-            #brick = @tree[brickName]
-            #print "\n Brick: #{brick}"
-        #}
+    end
+
+    def to_s
+        printTree("root", 1)
     end
 end
 
@@ -96,6 +130,7 @@ def printTimeDiff(start)
     ]
     print "\nThe finish time: #{finish}\n"
 end
+        
 
 #print "\tCommand [r]: "
 #while(gets.chomp() =~ /rh/) do
