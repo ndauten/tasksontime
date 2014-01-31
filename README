@@ -8,9 +8,13 @@
 
 This repository contains several scripts that I have used to do time management
 tasks. I plan to eventually incorporate them all into a single application, but
-they are each experiements, some with mature development, other with minimal
+they are each experiements, some with mature development and others with minimal
 development.
 
 <=== Sub App Descriptions ===>
     - ctimer.pl: 
         This is a perl script that captures the pomodoro style time tracking. 
+    - timetracker.rb:
+        This application is focused on tracking time as it relates to
+        roles/projects/tasks. It uses YAML input/output to file in order to
+        store the data.
