@@ -34,3 +34,7 @@ development.
                 
                 bundle exec bin/timetracker
 
+            - The last command will print out the help style interface for the
+              application. Get instructions there for how to use it.
+
+
