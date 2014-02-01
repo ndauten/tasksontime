@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 require 'gli'
+require 'yaml'
+
 begin # XXX: Remove this begin/rescue before distributing your app
 require 'timetracker'
 rescue LoadError
@@ -33,7 +35,7 @@ end
 
 desc 'Specify the file where the task tree lives'
 arg_name 'path'
-default_value File.join(ENV['HOME'],'.tasktree.yml')
+default_value File.join(ENV['HOME'],'.bricktree.yml')
 flag [:t,:tasktree]
 
 desc 'Be verbose'
@@ -57,33 +59,73 @@ command [:show,:sh] do |c|
     #c.default_value 'default'
     #c.flag :f
 
-    c.action do |global_options,options,args|
+    #c.action do |global_options,options,args|
 
         # Your command logic here
 
         # If you have any errors, just raise them
         # raise "that command made no sense"
 
-        puts "list command ran"
-    end
+        #puts "list command ran"
+    #end
     
     c.desc 'Show tree with names'
     c.command :tree do |all|
         all.action do 
-            #Claret::TaskListTerminalSerializer.new(:all).write($task_list)
+            $brick_tree.prettyPrintFullTree()
         end
     end
 
-    #c.default_command :tree
+    c.default_command :tree
 end
 
-#desc 'Describe add here'
+desc 'Add a new brick'
 #arg_name 'Describe arguments to add here'
-#command :add do |c|
-    #c.action do |global_options,options,args|
-        #puts "add command ran"
-    #end
-#end
+command :add do |c|
+
+    c.desc 'Name of the brick to add'
+    c.flag [:b,:brick]
+
+    c.desc 'Add the new brick to this parent'
+    c.flag [:p,:parent], :default_value => "root",
+                         :arg_name => "parent",
+                         :type => String,
+                         :desc => "The parent to add the new brick to."
+    
+    c.desc 'Comma separated list of tags'
+    c.flag [:t,:tags], :default_value => [],
+                       :arg_name => "tags",
+                       :type => Array,
+                       :desc => "List of tags"
+
+    # the default action is to add the brick to the parent
+    c.action do |global_options,options,args|
+        puts "Adding brick: #{options[:b]} to parent: #{options[:p]}, with tags: #{options[:t]}"
+        
+        raise 'Parent node does not exist.' unless $brick_tree.isBrick(options[:p])
+
+        $brick_tree.addBrick(options[:b], options[:p], options[:t])
+
+        if(options[:v]) then
+            print "\nResulting Tree: \n"
+            $brick_tree.prettyPrintFullTree()
+        end
+    end
+end
+
+desc 'Remove a new brick'
+arg_name 'brick_id'
+command [:rm,:remove] do |c|
+    c.action do |global_options,options,args|
+        #$brick_tree.removeBrick(args[0])
+        
+        if(options[:v])
+            then
+            print "\nResulting Tree: \n"
+            $brick_tree.prettyPrintFullTree()
+        end
+    end
+end
 
 pre do |global,command,options,args|
     # Pre logic here
@@ -91,6 +133,15 @@ pre do |global,command,options,args|
     # chosen command
     # Use skips_pre before a command to skip this block
     # on that command only
+
+    #$task_tree_serializer = BrickTree::TaskListYamlSerializer.new(global[:t])
+    #$task_list = $task_list_serializer.read
+    unless File.exists?(global[:t])
+        puts "Data file does not exist. Creating new one."
+        $brick_tree = BrickTree.new
+    else
+        $brick_tree = YAML.load_file(global[:t])
+    end
     true
 end
 
@@ -98,6 +149,7 @@ post do |global,command,options,args|
     # Post logic here
     # Use skips_post before a command to skip this
     # block on that command only
+    File.open(global[:t], 'w') {|f| f << $brick_tree.to_yaml }
 end
 
 on_error do |exception|
