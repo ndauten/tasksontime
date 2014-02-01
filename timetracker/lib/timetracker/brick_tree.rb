@@ -6,7 +6,7 @@ class BrickTimeRecord
     @startTime = 0
     @endTime = 0
     @name = ""
-    def initialize(tname, stime, etime, tags)
+    def initialize(tname="", stime=0, etime=0, tags=[])
         @startTime = stime
         @endTime = etime
         @tags = Array.new

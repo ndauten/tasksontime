@@ -145,10 +145,42 @@ desc 'Record time'
 arg_name 'time_record'
 command [:re,:record] do |c|
 
+    c.desc 'Name of the brick to record time on'
+    c.flag [:b,:brick]
+    
+    c.desc 'Name of the task to record time on'
+    c.flag [:t,:task]
+    
+    c.desc 'Name of tags to add to time record'
+    c.flag [:tags]
+
     c.action do |global_options,options,args|
-        raise "Not yet implemented"
+
+        ttimer = Timer.new
+        puts ttimer.startTime
+        print "\tCommand [r,s]: "
+        while comm = gets.chomp()
+            print "\tCommand [r,s]: "
+            if (comm =~ /r/) then
+                ttimer.printTimeDiffNow
+                puts "\nRestarting..."
+                ttimer.start
+                puts ttimer.start
+                #elsif (comm =~ /p/) then
+                #puts "Pausing timer #{ttimer.printTimeDiffNow}"
+            elsif (comm =~ /s/) then
+                ttimer.stop
+                puts "Stopping timer with time tracked: #{ttimer.printTimeDiffNow}"
+                break
+            end
+        end
+
+        print "Would you like to record this time to the brick? [Y/n] "
+        if (gets.chomp() =~ /[yY]/)
+            $brick_tree.recordTime(options[:t],options[:b], ttimer.startTime, ttimer.endTime, options[:tags]) 
+        end
+
         if(global_options[:verbose])
-            then
             print "\nResulting Tree: \n"
             $brick_tree.prettyPrintFullTree()
             puts $brick_tree.to_yaml

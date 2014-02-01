@@ -13,7 +13,7 @@
         [ ] Add/remove tags from Bricks;;
         [ ] Add/remove tags from TimeRecords;;
     [!] Record and Modify Time;;
-        [!] Timer based mechanism;;
+        [x] Timer based record;;
         [!] Manual adding mechanism;;
         [ ] Modify aspects of timerecord;;
         [ ] Delete timerecord;;
