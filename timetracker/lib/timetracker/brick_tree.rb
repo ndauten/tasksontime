@@ -82,9 +82,18 @@ class BrickTree
         }
     end
 
+    def removeSubTree(bname)
+        # Remove the brick from it's parent
+        # Recursively remove this brick and its children 
+    end
+
     def removeBrick(bname)
         raise "Brick: #{bname} does not exist." unless @tree.has_key?(bname)
-        @tree.delete(bname)
+        #@tree.delete(bname)
+    end
+
+    def getParent(bname)
+        @tree[@tree[bname]["parent"]]
     end
 
     def getBrickFromName(bname)
