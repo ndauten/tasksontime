@@ -1,0 +1,25 @@
+#===============================================================================
+#===============================================================================
+
+
+<=== Base Functionality ===>
+    [ ] Tree modification;;
+        [ ] Finish block removal;;
+    [ ] Metadata Modification;;
+        [ ] Add/remove tags from Bricks;;
+        [ ] Add/remove tags from TimeRecords;;
+    [ ] View Printing;;
+    [ ] Reports and Stats;;
+        [ ] View hours worked since sunday aggregate;;
+            [ ] Whole tree per node;;
+            [ ] Root;;
+            [ ] Depth of 1 ;;
+            [ ] Depth of n;;
+        [ ] View hours worked since sunday on calendar;;
+            [ ] Root;;
+            [ ] Depth of 1 ;;
+            [ ] Depth of n;;
+    [ ] Misc;;
+        [x] Complete initialization;;
+
+<=== Extra ===>
