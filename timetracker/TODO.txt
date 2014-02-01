@@ -1,25 +1,33 @@
 #===============================================================================
 #===============================================================================
 
-
-<=== Base Functionality ===>
+<=== Functionality ===>
     [ ] Tree modification;;
-        [ ] Finish block removal;;
+        [^] Finish block removal;;
+            [^] No children;;
+            [^] With children;;
+        [ ] Block move;;
+            [ ] With children;;
+            [ ] Without children ??? -- leave them at the existing parent;;
     [ ] Metadata Modification;;
         [ ] Add/remove tags from Bricks;;
         [ ] Add/remove tags from TimeRecords;;
+    [!] Record and Modify Time;;
+        [!] Timer based mechanism;;
+        [!] Manual adding mechanism;;
+        [ ] Modify aspects of timerecord;;
+        [ ] Delete timerecord;;
+        [ ] Move timerecord;;
     [ ] View Printing;;
     [ ] Reports and Stats;;
-        [ ] View hours worked since sunday aggregate;;
-            [ ] Whole tree per node;;
-            [ ] Root;;
-            [ ] Depth of 1 ;;
-            [ ] Depth of n;;
+        [!] View hours worked since sunday aggregate;;
+            [!] Whole tree per node;;
+            [!] Root;;
+            [!] Depth of 1 ;;
+            [!] Depth of n;;
         [ ] View hours worked since sunday on calendar;;
             [ ] Root;;
             [ ] Depth of 1 ;;
             [ ] Depth of n;;
     [ ] Misc;;
         [x] Complete initialization;;
-
-<=== Extra ===>
