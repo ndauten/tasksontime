@@ -41,7 +41,7 @@ sub notify_completion()
 {
     my $now_string = strftime "%a %b %e %H:%M:%S %Y", localtime;
 
-    &mail_notification($now_string);
+    #&mail_notification($now_string);
     system("DISPLAY=:2.0 ./naughty-notify.sh");
     system("DISPLAY=:1.0 ./naughty-notify.sh");
 
@@ -51,7 +51,7 @@ sub notify_completion()
     if(0)
     {
         if (`uname` ne "Linux"){
-            &mail_notification($now_string);
+            #&mail_notification($now_string);
             system("DISPLAY=:2.0 ./naughty-notify.sh");
             system("DISPLAY=:1.0 ./naughty-notify.sh");
         } else {    
