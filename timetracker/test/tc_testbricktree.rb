@@ -1,8 +1,9 @@
 #!/usr/bin/ruby
 #
 
+#require 'test_helper'
 require 'test/unit'
-require '../brick_tree.rb'
+require '../lib/timetracker/brick_tree.rb'
 require 'yaml'
 
 class TestBrickTree < Test::Unit::TestCase

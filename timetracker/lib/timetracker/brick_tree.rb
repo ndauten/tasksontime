@@ -62,7 +62,13 @@ class BrickTree
 
     def addBrick(bname, parentName, tags)
         # Check that the parent node is in the tree
-        raise "Parent node: #{bname}  does not exist." unless @tree.has_key?(parentName)
+        raise "Parent node: #{parentName} does not exist." unless @tree.has_key?(parentName)
+
+        # Make sure we have a new bname 
+        raise "Empty brick name, will not add!" if (bname.nil?)
+
+        # Check to see if the brick already exists, if so raise an exception
+        raise "Brick node: #{bname} already exists in the tree." if @tree.has_key?(bname)
 
         # Update @tree indexing structure -- playing around a bit here with the
         # hash as a full representation of the tree and data.
@@ -74,6 +80,11 @@ class BrickTree
             'timeWorked' => [], 
             'children' => [] 
         }
+    end
+
+    def removeBrick(bname)
+        raise "Brick: #{bname} does not exist." unless @tree.has_key?(bname)
+        @tree.delete(bname)
     end
 
     def getBrickFromName(bname)
@@ -121,7 +132,11 @@ class BrickTree
         }
     end
 
+    def prettyPrintFullTree
+        prettyPrint("root", 0)
+    end
+
     def to_s
-        prettyPrint("root", 1)
+        prettyPrint("root", 0)
     end
 end
