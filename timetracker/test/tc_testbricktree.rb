@@ -60,7 +60,19 @@ class TestBrickTree < Test::Unit::TestCase
         puts @bt.to_yaml
     end
 
+    def test_brick_post_order
+        @bt.traverse_postorder("root") {|brick|
+            puts brick['brick'] 
+        }
+    end
+
     def test_brick_week_time
+        h = Hash.new(0)
+        @bt.traverse_postorder do |brick|
+            puts @bt.brickTotalTimeDirect(brick['brick'])
+            h[brick['brick']] = @bt.brickTotalTimeDirect(brick['brick'])
+        end
+        puts h
     end
 
     def test_print_btree

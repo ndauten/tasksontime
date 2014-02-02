@@ -6,6 +6,7 @@ class BrickTimeRecord
     @startTime = 0
     @endTime = 0
     @name = ""
+
     def initialize(tname="", stime=0, etime=0, tags=[])
         @startTime = stime
         @endTime = etime
@@ -13,6 +14,11 @@ class BrickTimeRecord
         @tags = tags
         @name = tname
     end
+
+    def duration  #Note this is in seconds
+        @endTime - @startTime
+    end
+
     def to_s
         print "Name: #{@name} --- Start Time: #{@startTime} --- End Time: #{@endTime}"
     end
@@ -122,6 +128,35 @@ class BrickTree
         # Create a time record and add it to the timeWorked array
         @tree[bname]['timeWorked'].push(BrickTimeRecord.new(tname, tstart, tend, tags))
     end
+
+    def brickTotalTimeDirect(bname)
+        # Check that the parent node is in the tree
+        raise "Brick node: #{bname} does not exist." unless @tree.has_key?(bname)
+        sum = 0
+        @tree[bname]['timeWorked'].each do |btr|
+            sum = sum + btr.duration
+        end
+        sum
+    end
+
+    def brickTotalTimeAggregate
+    end
+    
+    # This function includes a yield, which is a closure passed from the
+    # context of the caller. It also does a depth first, visit children then
+    # parent traversal order.
+    def traverse_postorder(brick="root", &lambdaF)
+        raise "Brick node: #{brick} does not exist can't traverse." unless @tree.has_key?(brick)
+
+        @tree[brick]['children'].each {|bc| traverse_postorder(bc, &lambdaF) }
+
+        # We pass the brick into the closure associated with the function call
+        yield(@tree[brick])
+    end
+
+    def traverse_preorder(brick)
+    end
+
 
     def isBrick(b)
         @tree.has_key?(b)

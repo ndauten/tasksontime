@@ -75,6 +75,17 @@ command [:show,:sh] do |c|
             $brick_tree.prettyPrintFullTree()
         end
     end
+        
+    c.desc 'Show show time worked for each brick'
+    c.command :time do |all|
+        all.action do 
+            h = Hash.new(0)
+            $brick_tree.traverse_postorder do |brick|
+                h[brick['brick']] = $brick_tree.brickTotalTimeDirect(brick['brick'])
+            end
+            puts h
+        end
+    end
 
     c.default_command :tree
 end
