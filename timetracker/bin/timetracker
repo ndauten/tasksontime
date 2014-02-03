@@ -111,8 +111,15 @@ command :add do |c|
 
     # the default action is to add the brick to the parent
     c.action do |global_options,options,args|
+        # Argument validation
+        if(options[:b].nil? && options[:brick].nil?)
+            help_now!('Must give a new brickname')
+        elsif (options[:p].nil? && options[:parent].nil?)
+            help_now!('Must provide a parent to attach the new brick')
+        end
+
         puts "Adding brick: #{options[:b]} to parent: #{options[:p]}, with tags: #{options[:t]}"
-        
+
         $brick_tree.addBrick(options[:b], options[:p], options[:t])
 
         if(global_options[:verbose]) then
