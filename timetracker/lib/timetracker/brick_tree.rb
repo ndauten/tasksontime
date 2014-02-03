@@ -88,14 +88,37 @@ class BrickTree
         }
     end
 
+    #
+    #-- 
+    # Method: removeSubTree
+    #
+    # Description:
+    #   This method will do a preorder traversal of the tree and remove all of
+    #   a particular subtree starting at the given brick. Once all of the tree
+    #   is removed it must then remove the link in the parent's children list. 
+    #
+    # Input:
+    #   - Name of the brick to eliminate
+    #--  
+    #
     def removeSubTree(bname)
         # Remove the brick from it's parent
         # Recursively remove this brick and its children 
+        self.traverse_postorder(bname) do |brick|
+            # Remove the brick from the hash
+            self.removeBrick(brick['brick'])
+
+            # Now remove the parent node's link to the brick
+            self.removeChildLink(brick['parent'], brick['brick'])
+        end
     end
 
     def removeBrick(bname)
-        raise "Brick: #{bname} does not exist." unless @tree.has_key?(bname)
-        #@tree.delete(bname)
+        @tree.delete(bname)
+    end
+
+    def removeChildLink(parent, child)
+        @tree[parent]['children'].delete(child)
     end
 
     def getParent(bname)

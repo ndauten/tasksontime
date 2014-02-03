@@ -98,7 +98,7 @@ command :add do |c|
     c.flag [:b,:brick]
 
     c.desc 'Add the new brick to this parent'
-    c.flag [:p,:parent], :default_value => "root",
+    c.flag [:p,:parent], :default_value => NIL,
                          :arg_name => "parent",
                          :type => String,
                          :desc => "The parent to add the new brick to."
@@ -136,7 +136,6 @@ command [:rm,:remove] do |c|
     c.desc "Remove all of a subtree starting at the brick provided"
     c.command [:st,:subtree] do |c|
         c.action do |global_options,options,args|
-            raise "Not yet implemented"
             $brick_tree.removeSubTree(args[0])
             if(global_options[:verbose])
                 then
