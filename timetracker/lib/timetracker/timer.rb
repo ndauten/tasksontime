@@ -29,3 +29,13 @@ class Timer
         @endTime - @startTime
     end
 end
+
+module TimeUtils
+    def TimeUtils.timeDiffPretty(seconds)
+        "%02d:%02d:%02d" % [
+            seconds / (60*60),
+            seconds / 60 % 60,
+            seconds % 60
+        ]
+    end
+end

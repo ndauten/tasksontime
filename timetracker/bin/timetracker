@@ -81,7 +81,7 @@ command [:show,:sh] do |c|
         all.action do 
             h = Hash.new(0)
             $brick_tree.traverse_postorder do |brick|
-                h[brick['brick']] = $brick_tree.brickTotalTimeDirect(brick['brick'])
+                h[brick['brick']] = TimeUtils.timeDiffPretty($brick_tree.brickTotalTimeDirect(brick['brick']))
             end
             puts h
         end
@@ -171,7 +171,12 @@ command [:re,:record] do |c|
     c.desc 'Name of tags to add to time record'
     c.flag [:tags]
 
+
     c.action do |global_options,options,args|
+    
+        if(options[:b].nil? && options[:brick].nil?)
+            help_now!('Must provide a brickname to record time to')
+        end
 
         ttimer = Timer.new
         puts ttimer.startTime
@@ -198,9 +203,9 @@ command [:re,:record] do |c|
         end
 
         if(global_options[:verbose])
-            print "\nResulting Tree: \n"
-            $brick_tree.prettyPrintFullTree()
-            puts $brick_tree.to_yaml
+            #print "\nResulting Tree: \n"
+            #$brick_tree.prettyPrintFullTree()
+            #puts $brick_tree.to_yaml
         end
     end
 
