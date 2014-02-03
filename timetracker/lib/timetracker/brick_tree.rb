@@ -172,6 +172,7 @@ class BrickTree
     def prettyPrint(name, level)
         print "  --+"*(level), "#{name}:\n"
         @tree[name]['children'].each { |brickName|
+            raise "Pretty Print: child node #{brickName} is not in the tree." unless @tree.has_key?(brickName)
             prettyPrint(brickName, level+1)
         }
     end
