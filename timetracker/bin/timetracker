@@ -70,20 +70,16 @@ command [:show,:sh] do |c|
     #end
     
     c.desc 'Show tree with names'
-    c.command :tree do |all|
-        all.action do 
+    c.command :tree do |c2|
+        c2.action do |global_options,options,args|
             $brick_tree.prettyPrintFullTree()
         end
     end
         
     c.desc 'Show show time worked for each brick'
-    c.command :time do |all|
-        all.action do 
-            h = Hash.new(0)
-            $brick_tree.traverse_postorder do |brick|
-                h[brick['brick']] = TimeUtils.timeDiffPretty($brick_tree.brickTotalTimeDirect(brick['brick']))
-            end
-            puts h
+    c.command :time do |c2|
+        c2.action do |global_options,options,args|
+            $brick_tree.printSubtree()
         end
     end
 

@@ -154,7 +154,7 @@ class BrickTree
 
     def brickTotalTimeDirect(bname)
         # Check that the parent node is in the tree
-        raise "Brick node: #{bname} does not exist." unless @tree.has_key?(bname)
+        raise "<bttd> Brick node: #{bname} does not exist." unless @tree.has_key?(bname)
         sum = 0
         @tree[bname]['timeWorked'].each do |btr|
             sum = sum + btr.duration
@@ -162,7 +162,13 @@ class BrickTree
         sum
     end
 
-    def brickTotalTimeAggregate
+    def brickTotalTimeAggregate(brickName)
+        raise "Brick node: #{brickName} does not exist can't calculate time." unless @tree.has_key?(brickName)
+        brickAggregateTime = 0
+        self.traverse_postorder(brickName) do |brick|
+            brickAggregateTime += brickTotalTimeDirect(brick['brick'])
+        end
+        brickAggregateTime
     end
     
     # This function includes a yield, which is a closure passed from the
@@ -177,7 +183,27 @@ class BrickTree
         yield(@tree[brick])
     end
 
-    def traverse_preorder(brick)
+    # 
+    # ---
+    # Function: traverse_preorder
+    #
+    # Description:
+    #   Traverse the tree starting at brick in preorder, which means to visit
+    #   the parent then the children.
+    #
+    # Input:
+    #   brick: The node to start the traversal at
+    #   &lambdaF: The lambda function to execute for visiting the node
+    #---
+    #
+    def traverse_preorder(brickName="root", &labmdaF)
+        raise "Brick node: #{brickName} does not exist can't traverse." unless @tree.has_key?(brickName)
+        
+        # Visit the parent first
+        yield(@tree[brickName])
+
+        # Then recurse into the children
+        @tree[brickName]['children'].each {|bc| traverse_preorder(bc, &lambdaF) }
     end
 
 
@@ -193,7 +219,9 @@ class BrickTree
     
     # attempts to pretty print the tree.
     def prettyPrint(name, level)
-        print "  --+"*(level), "#{name}:\n"
+        brickTimePretty = TimeUtils.timeDiffPretty(brickTotalTimeAggregate(name))
+        #print "   "*(level), '- ', "#{name} [#{brickTimePretty}]: ", "."*5," #{brickTimePretty}\n"
+        print "    "*(level), '- ', "#{name} [#{brickTimePretty}] \n"
         @tree[name]['children'].each { |brickName|
             raise "Pretty Print: child node #{brickName} is not in the tree." unless @tree.has_key?(brickName)
             prettyPrint(brickName, level+1)
@@ -204,7 +232,15 @@ class BrickTree
         prettyPrint("root", 0)
     end
 
-    def to_s
-        prettyPrint("root", 0)
+    def printSubtree(brickName="root", indent=0)
+        traverse_preorder(brickName) do |brick|
+            print brick['brick'], "\n"
+            #print ' ' * indent, "#{brick['brick']}: #{brickTotalTimeAggregate(brick['brick'])} \n"
+            #indent += 1
+        end
+    end
+
+    def to_s(indent=0)
+        printSubtree("root", 0)
     end
 end
