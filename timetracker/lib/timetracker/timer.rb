@@ -15,6 +15,15 @@ class Timer
         @endTime = Time.now
     end
 
+    def timeDiffNowStr
+        seconds = Time.now - @startTime
+        "%02d:%02d:%02d" % [
+            seconds / (60*60),
+            seconds / 60 % 60,
+            seconds % 60
+        ]
+    end
+
     def printTimeDiffNow
         seconds = Time.now - @startTime
         print "\n\t**** The time difference: "

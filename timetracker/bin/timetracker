@@ -176,26 +176,34 @@ command [:re,:record] do |c|
 
         ttimer = Timer.new
         puts ttimer.startTime
-        print "\tCommand [r,s]: "
-        while comm = gets.chomp()
-            print "\tCommand [r,s]: "
+        comm = 0
+        quit = false
+        while !quit 
+            print "\r\t", ttimer.timeDiffNowStr(), "\tCommand [r,s]: "
+
+            # Not sure why, but this thing has to be a high number. For some
+            # reason if the value passed to the read is low it doesn't read
+            # enough of the buffer and STDIN get's messed up. 
+            comm = STDIN.read_nonblock(1000) rescue nil
             if (comm =~ /r/) then
-                ttimer.printTimeDiffNow
-                puts "\nRestarting..."
+                ttimer.printTimeDiffNow()
+                puts "\nRestarting...\n"
                 ttimer.start
                 puts ttimer.start
-                #elsif (comm =~ /p/) then
-                #puts "Pausing timer #{ttimer.printTimeDiffNow}"
             elsif (comm =~ /s/) then
                 ttimer.stop
                 puts "Stopping timer with time tracked: #{ttimer.printTimeDiffNow}"
-                break
+                quit = true
             end
+            sleep(1)
         end
-
-        print "Would you like to record this time to the brick? [Y/n] "
+        print "Would you like to record this time to the brick? [y/N] "
         if (gets.chomp() =~ /[yY]/)
-            $brick_tree.recordTime(options[:t],options[:b], ttimer.startTime, ttimer.endTime, options[:tags]) 
+            $brick_tree.recordTime(options[:t],
+                                   options[:b], 
+                                   ttimer.startTime, 
+                                   ttimer.endTime, 
+                                   options[:tags]) 
         end
 
         if(global_options[:verbose])
