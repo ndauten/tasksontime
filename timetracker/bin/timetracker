@@ -181,8 +181,8 @@ command [:re,:record] do |c|
         # This thread prints out the timer
         tOut = Thread.new {
             # Prints out the time to STDOUT for the user to see the duration
+            print "Command: r: reset, s: stop, q: quit\n"
             while 1
-                print "Command: r: reset, s: stop, q: quit\n"
                 print "\r\t", ttimer.timeDiffNowStr(), "\tCommand [r,s,q]: "
                 sleep(1)
             end
@@ -191,32 +191,23 @@ command [:re,:record] do |c|
         # This thread waits for input and manages it. Notice that we need to
         # kill the output thread if we want the display to be coherant after
         # the user has entered data.
-        tInput = Thread.new {
-            while !quit
-                comm = gets.chomp()
-                if (comm =~ /r/) then
-                    ttimer.printTimeDiffNow()
-                    puts "\nRestarting...\n"
-                    ttimer.start
-                    puts ttimer.start
-                elsif (comm =~ /s/) then
-                    ttimer.stop
-                    tOut.exit
-                    puts "Stopping timer with time tracked: #{ttimer.printTimeDiffNow}"
-                    Thread.exit
-                elsif (comm =~ /q/) then
-                    puts "Quiting..."
-                    tOut.exit
-                    quit = true
-                    Thread.exit
-                end
+        while !quit
+            comm = gets.chomp()
+            if (comm =~ /r/) then
+                ttimer.printTimeDiffNow()
+                puts "\nRestarting...\n"
+                ttimer.start
+                puts ttimer.start
+            elsif (comm =~ /s/) then
+                ttimer.stop
+                tOut.exit
+                puts "Stopping timer with time tracked: #{ttimer.printTimeDiffNow}"
+            elsif (comm =~ /q/) then
+                tOut.exit
+                puts "Quiting..."
+                quit = true
             end
-        }
-
-        
-        # This forces synchronization so that we can ask if the user is ready
-        # to quit.
-        tInput.join
+        end
 
         unless(quit)
             print "Would you like to record this time to the brick? [y/N] "
