@@ -181,9 +181,9 @@ command [:re,:record] do |c|
         # This thread prints out the timer
         tOut = Thread.new {
             # Prints out the time to STDOUT for the user to see the duration
-            print "Command: r: reset, s: stop, q: quit\n"
+            print "Command: r: reset, c: complete, q: quit\n"
             while 1
-                print "\r\t", ttimer.timeDiffNowStr(), "\tCommand [r,s,q]: "
+                print "\r\t", ttimer.timeDiffNowStr(), "\tCommand [r,c,q]: "
                 sleep(1)
             end
         }
@@ -198,7 +198,7 @@ command [:re,:record] do |c|
                 puts "\nRestarting...\n"
                 ttimer.start
                 puts ttimer.start
-            elsif (comm =~ /s/) then
+            elsif (comm =~ /c/) then
                 ttimer.stop
                 tOut.exit
                 puts "Stopping timer with time tracked: #{ttimer.printTimeDiffNow}"
