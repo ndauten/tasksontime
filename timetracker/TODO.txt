@@ -21,16 +21,33 @@
         [ ] Modify aspects of timerecord;;
         [ ] Delete timerecord;;
         [ ] Move timerecord;;
-    [ ] View Printing;;
+    [!] TaskList;;
+        [!] Add data structure to tree to manage simple task info: deadline,
+            estimated time, due date, tag;;
+        [ ] Create ADD Task function to add to a brick's tasklist;;
+        [ ] Design task completion and deletion functionality;;
+        [!] Create simple task viewing function;;
+    [x] View Printing;;
     [ ] Reports and Stats;;
-        [!] View hours worked since sunday aggregate;;
-            [!] Whole tree per node;;
-            [!] Root;;
+        [*] View hours worked since sunday aggregate;;
+            [x] Whole tree per node;;
+            [x] Root;;
             [!] Depth of 1 ;;
             [!] Depth of n;;
-        [ ] View hours worked since sunday on calendar;;
+        [ ] View daily hours broken down by brick;;
+        [ ] View hours worked since sunday on calendar -- time view ;;
             [ ] Root;;
             [ ] Depth of 1 ;;
             [ ] Depth of n;;
     [ ] Misc;;
         [x] Complete initialization;;
+
+<=== Distribution ===>
+    [ ] Get this ready to work in a distributed form;;
+        [ ] Create distribution type git branches;;
+        [ ] Figure out how to do this for ruby gems;;
+        [ ] Add to rubygems;;
+    [ ] Contact GLI to give them indicator of using their interface;;
+
+<=== Documentation ===>
+    [ ] Update README on usage;;
