@@ -47,4 +47,19 @@ module TimeUtils
             seconds % 60
         ]
     end
+
+    # This function determines if the given time object occured since the most
+    # recent sunday.
+    def TimeUtils.sinceSunday(time)
+        # Get a time object for right now
+        now = Time.new
+
+        # Get the date time object for the most recent sunday 12 am
+        sunday = Time.new(now.year, now.month, now.day - now.wday, 0, 0, 0, 0)
+
+        # Do the comparison and return the result 
+        #print "Comparing: Last Sunday: #{sunday}, time: #{time}, compare: #{time>sunday}\n"
+
+        time > sunday
+    end
 end

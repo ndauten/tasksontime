@@ -2,7 +2,8 @@
 #
 
 class BrickTimeRecord
-    attr_writer :startTime, :startTime, :name
+    attr_reader :startTime, :endTime, :name
+    attr_writer :startTime, :endTime, :name
     @startTime = 0
     @endTime = 0
     @name = ""
@@ -161,12 +162,31 @@ class BrickTree
         end
         sum
     end
+    
+    def brickWeekTimeDirect(bname)
+        # Check that the parent node is in the tree
+        raise "<bttd> Brick node: #{bname} does not exist." unless @tree.has_key?(bname)
+        sum = 0
+        @tree[bname]['timeWorked'].each do |btr|
+            sum = sum + btr.duration if (TimeUtils.sinceSunday(btr.endTime))
+        end
+        sum
+    end
 
     def brickTotalTimeAggregate(brickName)
         raise "Brick node: #{brickName} does not exist can't calculate time." unless @tree.has_key?(brickName)
         brickAggregateTime = 0
         self.traverse_postorder(brickName) do |brick|
             brickAggregateTime += brickTotalTimeDirect(brick['brick'])
+        end
+        brickAggregateTime
+    end
+
+    def brickWeeklyTimeAggregate(brickName)
+        raise "Brick node: #{brickName} does not exist can't calculate time." unless @tree.has_key?(brickName)
+        brickAggregateTime = 0
+        self.traverse_postorder(brickName) do |brick|
+            brickAggregateTime += brickWeekTimeDirect(brick['brick'])
         end
         brickAggregateTime
     end
@@ -219,7 +239,7 @@ class BrickTree
     
     # attempts to pretty print the tree.
     def prettyPrint(name, level)
-        brickTimePretty = TimeUtils.timeDiffPretty(brickTotalTimeAggregate(name))
+        brickTimePretty = TimeUtils.timeDiffPretty(brickWeeklyTimeAggregate(name))
         #print "   "*(level), '- ', "#{name} [#{brickTimePretty}]: ", "."*5," #{brickTimePretty}\n"
         print "    "*(level), '- ', "#{name} [#{brickTimePretty}] \n"
         @tree[name]['children'].each { |brickName|
