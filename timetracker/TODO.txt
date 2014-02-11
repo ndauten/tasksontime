@@ -27,6 +27,8 @@
         [ ] Create ADD Task function to add to a brick's tasklist;;
         [ ] Design task completion and deletion functionality;;
         [!] Create simple task viewing function;;
+        [ ] Consider design of scheduling mechanism as well -- e.g., scheduled
+            tasks do not require any attention when analyzing lists;;
     [x] View Printing;;
     [ ] Reports and Stats;;
         [*] View hours worked since sunday aggregate;;
@@ -41,6 +43,9 @@
             [ ] Depth of n;;
     [ ] Misc;;
         [x] Complete initialization;;
+    [ ] Bugdeting -- The ability to set a weekly budget and track that as the
+        week progresses;;
+        [ ] Design data structures and functionality;;
 
 <=== Distribution ===>
     [ ] Get this ready to work in a distributed form;;
