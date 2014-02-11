@@ -202,30 +202,15 @@ class BrickTree
         # We pass the brick into the closure associated with the function call
         yield(@tree[brick])
     end
+    
+    def traverse_preorder(brick="root", &lambdaF)
+        raise "Brick node: #{brick} does not exist can't traverse." unless @tree.has_key?(brick)
 
-    # 
-    # ---
-    # Function: traverse_preorder
-    #
-    # Description:
-    #   Traverse the tree starting at brick in preorder, which means to visit
-    #   the parent then the children.
-    #
-    # Input:
-    #   brick: The node to start the traversal at
-    #   &lambdaF: The lambda function to execute for visiting the node
-    #---
-    #
-    def traverse_preorder(brickName="root", &labmdaF)
-        raise "Brick node: #{brickName} does not exist can't traverse." unless @tree.has_key?(brickName)
-        
-        # Visit the parent first
-        yield(@tree[brickName])
+        # We pass the brick into the closure associated with the function call
+        yield(@tree[brick])
 
-        # Then recurse into the children
-        @tree[brickName]['children'].each {|bc| traverse_preorder(bc, &lambdaF) }
+        @tree[brick]['children'].each {|bc| traverse_preorder(bc, &lambdaF) }
     end
-
 
     def isBrick(b)
         @tree.has_key?(b)
