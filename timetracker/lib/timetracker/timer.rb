@@ -55,11 +55,21 @@ module TimeUtils
         now = Time.new
 
         # Get the date time object for the most recent sunday 12 am
-        sunday = Time.new(now.year, now.month, now.day - now.wday, 0, 0, 0, 0)
+        sunday = Time.new(now.year, now.month, now.day - now.wday, 0, 0, 0, "-06:00")
 
         # Do the comparison and return the result 
         #print "Comparing: Last Sunday: #{sunday}, time: #{time}, compare: #{time>sunday}\n"
 
         time > sunday
+    end
+
+    #
+    # Note this assumes right now that we convert the day not worrying about
+    # the time.
+    def TimeUtils.isInDateRange(time, dayStart, dayFinish)
+        d1 = Time.new(dayStart.year, dayStart.month, dayStart.day, 0, 0, 0, "-06:00")
+        d2 = Time.new(dayFinish.year, dayFinish.month, dayFinish.day+1, 0, 0, 0, "-06:00")
+        #puts "Requested time: #{time}: start range: #{d1}, end range: #{d2}"
+        d1 < time && time < d2
     end
 end

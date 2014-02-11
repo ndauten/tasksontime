@@ -77,9 +77,9 @@ command [:show,:sh] do |c|
     end
         
     c.desc 'Show show time worked for each brick'
-    c.command :time do |c2|
+    c.command [:to,:today] do |c2|
         c2.action do |global_options,options,args|
-            $brick_tree.printSubtree()
+            $brick_tree.printSubtreeTodayTime()
         end
     end
 

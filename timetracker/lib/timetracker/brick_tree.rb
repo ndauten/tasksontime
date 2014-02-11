@@ -153,6 +153,30 @@ class BrickTree
         @tree[bname]['timeWorked'].push(BrickTimeRecord.new(tname, tstart, tend, tags))
     end
 
+    ##----
+    # Description: Get the amount of aggregate time for the given brick between
+    # the given dates.
+    ##----
+    def brickTimeDirect(bname, dayStart, dayFinish)
+        # Check that the parent node is in the tree
+        raise "<bttd> Brick node: #{bname} does not exist." unless @tree.has_key?(bname)
+        sum = 0
+        @tree[bname]['timeWorked'].each do |btr|
+            sum = btr.duration if(TimeUtils.isInDateRange(btr.endTime, dayStart, dayFinish))
+        end
+        sum
+    end
+    
+    #def brickDayTimeDirect(bname)
+        ## Check that the parent node is in the tree
+        #raise "<bttd> Brick node: #{bname} does not exist." unless @tree.has_key?(bname)
+        #sum = 0
+        #@tree[bname]['timeWorked'].each do |btr|
+            ##sum = sum + btr.duration if (TimeUtils.isToday(btr.endTime))
+        #end
+        #sum
+    #end
+    
     def brickTotalTimeDirect(bname)
         # Check that the parent node is in the tree
         raise "<bttd> Brick node: #{bname} does not exist." unless @tree.has_key?(bname)
@@ -172,6 +196,15 @@ class BrickTree
         end
         sum
     end
+    
+    def brickDayTimeAggregate(brickName)
+        raise "Brick node: #{brickName} does not exist can't calculate time." unless @tree.has_key?(brickName)
+        brickAggregateTime = 0
+        self.traverse_postorder(brickName) do |brick|
+            brickAggregateTime += brickTimeDirect(brick['brick'], Time.now, Time.now)
+        end
+        brickAggregateTime
+    end
 
     def brickTotalTimeAggregate(brickName)
         raise "Brick node: #{brickName} does not exist can't calculate time." unless @tree.has_key?(brickName)
@@ -190,7 +223,7 @@ class BrickTree
         end
         brickAggregateTime
     end
-    
+
     # This function includes a yield, which is a closure passed from the
     # context of the caller. It also does a depth first, visit children then
     # parent traversal order.
@@ -203,13 +236,13 @@ class BrickTree
         yield(@tree[brick])
     end
     
-    def traverse_preorder(brick="root", &lambdaF)
+    def traverse_preorder(brick="root", depth=0, &lambdaF)
         raise "Brick node: #{brick} does not exist can't traverse." unless @tree.has_key?(brick)
 
         # We pass the brick into the closure associated with the function call
-        yield(@tree[brick])
+        yield(@tree[brick], depth)
 
-        @tree[brick]['children'].each {|bc| traverse_preorder(bc, &lambdaF) }
+        @tree[brick]['children'].each {|bc| traverse_preorder(bc, depth+1, &lambdaF) }
     end
 
     def isBrick(b)
@@ -237,12 +270,19 @@ class BrickTree
         prettyPrint("root", 0)
     end
 
+    def printSubtreeTodayTime(brickName="root", indent=0)
+        traverse_preorder(brickName, indent) {|brick, depth|
+            timeDiffPretty = TimeUtils.timeDiffPretty(brickDayTimeAggregate(brick['brick']))
+            print '   ' * depth, "#{brick['brick']}: #{timeDiffPretty} \n"
+        }
+    end
+
     def printSubtree(brickName="root", indent=0)
-        traverse_preorder(brickName) do |brick|
-            print brick['brick'], "\n"
+        #traverse_preorder(brickName) {|brick|
+            #print brick['brick'], "\n"
             #print ' ' * indent, "#{brick['brick']}: #{brickTotalTimeAggregate(brick['brick'])} \n"
             #indent += 1
-        end
+        #}
     end
 
     def to_s(indent=0)
