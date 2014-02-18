@@ -162,7 +162,7 @@ class BrickTree
         raise "<bttd> Brick node: #{bname} does not exist." unless @tree.has_key?(bname)
         sum = 0
         @tree[bname]['timeWorked'].each do |btr|
-            sum = btr.duration if(TimeUtils.isInDateRange(btr.endTime, dayStart, dayFinish))
+            sum += btr.duration if(TimeUtils.isInDateRange(btr.endTime, dayStart, dayFinish))
         end
         sum
     end
@@ -273,7 +273,22 @@ class BrickTree
     def printSubtreeTodayTime(brickName="root", indent=0)
         traverse_preorder(brickName, indent) {|brick, depth|
             timeDiffPretty = TimeUtils.timeDiffPretty(brickDayTimeAggregate(brick['brick']))
-            print '   ' * depth, "#{brick['brick']}: #{timeDiffPretty} \n"
+            print "    " * depth, "#{brick['brick']}: [#{timeDiffPretty}]\n"
+        }
+    end
+    
+    # ---------
+    # Function: printSubtreeTodayTime
+    #
+    # Description: 
+    #   Starting at the given root, do a preorder tree traversal to collect
+    #   total brick work times. While going through print out the tree, given
+    #   the preorder traversal. 
+    # ---------
+    def printSubtreeTotalTime(brickName="root", indent=0)
+        traverse_preorder(brickName, indent) {|brick, depth|
+            timeDiffPretty = TimeUtils.timeDiffPretty(brickTotalTimeAggregate(brick['brick']))
+            print "    " * depth, "#{brick['brick']}: [#{timeDiffPretty}]\n"
         }
     end
 
