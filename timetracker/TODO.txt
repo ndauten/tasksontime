@@ -31,6 +31,7 @@
             tasks do not require any attention when analyzing lists;;
     [x] View Printing;;
     [ ] Reports and Stats;;
+        [!] Refactor out printing to a new class;;
         [*] View hours worked since sunday aggregate;;
             [x] Whole tree per node;;
             [x] Root;;
