@@ -276,6 +276,18 @@ class BrickTree
             print "    " * depth, "#{brick['brick']}: [#{timeDiffPretty}]\n"
         }
     end
+
+    def timeRecordsForDate()
+    end
+
+    def printTimeRecords(date)
+        traverse_preorder(brickName, indent) {|brick, depth|
+            print "    " * depth, "#{brick['brick']}:\n"
+            timeRecordsForDate(date).each{ |tr|
+                print "    " * (depth+1), tr
+            }
+        }
+    end
     
     # ---------
     # Function: printSubtreeTodayTime

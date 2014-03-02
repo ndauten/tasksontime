@@ -55,9 +55,12 @@ command [:show,:sh] do |c|
     #c.desc 'Describe a switch to list'
     #c.switch :s
 
-    #c.desc 'Describe a flag to list'
-    #c.default_value 'default'
-    #c.flag :f
+    c.desc 'Specify a date to show information'
+    c.default_value 'today'
+    c.flag [:d,:day], :default_value => 'today',
+                         :arg_name => "date",
+                         :type => String,
+                         :desc => "The date to show information for"
 
     #c.action do |global_options,options,args|
 
@@ -87,6 +90,16 @@ command [:show,:sh] do |c|
     c.command [:total] do |c2|
         c2.action do |global_options,options,args|
             $brick_tree.printSubtreeTotalTime()
+        end
+    end
+    
+    c.desc 'Show brick time records for day <def:today>'
+    c.command [:tr, :time] do |c2|
+        c2.action do |global_options,options,args|
+            puts "Time Record for #{options[:d]}\n"
+            #$brick_tree.printTimeRecords(options[:d]).each {|tr|
+                #puts '\t',tr
+            #}
         end
     end
 
