@@ -37,7 +37,13 @@
             [x] Root;;
             [!] Depth of 1 ;;
             [!] Depth of n;;
-        [ ] View daily hours broken down by brick;;
+        [ ] Time Record Printing;;
+            [x] By brick;;
+                [x] View daily hours broken down by brick;;
+                [x] View time worked for date range by brick;;
+            [ ] By Date -- only show actual time slots worked;;
+                [ ] View time worked based upon date and time view per day;;
+                [ ] View by date range -- multiple days;;
         [ ] View hours worked since sunday on calendar -- time view ;;
             [ ] Root;;
             [ ] Depth of 1 ;;
