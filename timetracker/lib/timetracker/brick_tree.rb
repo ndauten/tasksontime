@@ -25,9 +25,13 @@ class BrickTimeRecord
         date.month == @startTime.month &&
         date.year == @startTime.year
     end
+    
+    def inRange(beginDate, endDate)
+        beginDate < @startTime && @startTime < endDate
+    end
 
     def to_s
-        stP = @startTime.strftime("%I:%M%p")
+        stP = @startTime.strftime("[%m.%d.%y] %I:%M%p")
         etP = @endTime.strftime("%I:%M%p")
         "#{stP} - #{etP} [#{@name}]"
     end
@@ -295,7 +299,7 @@ class BrickTree
         self.traverse_preorder() {|brick, depth|
             print "    " * depth, "#{brick['brick']}:\n"
             brick['timeWorked'].each{ |tr|
-                if(tr.onDate(dateBegin)) 
+                if(tr.inRange(dateBegin,dateEnd)) 
                     print "    " * (depth+1), tr, "\n"
                 end
             }
