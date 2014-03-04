@@ -55,12 +55,15 @@ command [:show,:sh] do |c|
     #c.desc 'Describe a switch to list'
     #c.switch :s
 
-    c.desc 'Specify a date to show information'
+    c.desc 'Specify a date to show information: format mm.dd.yy'
     c.default_value 'today'
     c.flag [:d,:day], :default_value => 'today',
                          :arg_name => "date",
                          :type => String,
                          :desc => "The date to show information for"
+    
+    c.desc 'Specify a date range to show information; format mm.dd.yy-mm.dd.yy'
+    c.flag [:r,:range]
 
     #c.action do |global_options,options,args|
 
@@ -97,14 +100,20 @@ command [:show,:sh] do |c|
     c.command [:tr, :time] do |c2|
         c2.action do |global_options,options,args|
             puts "Time Record for #{options[:d]}\n"
-            if(options[:d] == "today")
-                date = Time.now
+            unless(options[:r].nil?)
+                puts options[:r]
+                exit
             else
-                # Format is mm:dd:yy
-                dateStr = options[:d].split('.')
-                date = Time.new("20#{dateStr[2]}", dateStr[0], dateStr[1])
+                if(options[:d] == "today")
+                    date = Time.now
+                else
+                    # Format is mm:dd:yy
+                    dateStr = options[:d].split('.')
+                    dateBegin = Time.new("20#{dateStr[2]}", dateStr[0], dateStr[1])
+                    dateEnd = dateBegin
+                end
             end
-            $brick_tree.printTimeRecords(date)
+            $brick_tree.printTimeRecords(dateBegin, dateEnd)
         end
     end
 

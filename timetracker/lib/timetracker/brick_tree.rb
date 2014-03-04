@@ -27,12 +27,9 @@ class BrickTimeRecord
     end
 
     def to_s
-        #"Name: #{@name}: #{@startTime.hour}:#{@startTime.min} -- #{@endTime.hour}:#{@endTime.min}"
         stP = @startTime.strftime("%I:%M%p")
         etP = @endTime.strftime("%I:%M%p")
         "#{stP} - #{etP} [#{@name}]"
-        #"Name: #{TimeUtils.timeDiffPretty(@startTime.nsec)} --
-        ##{TimeUtils.timeDiffPretty(@endTime.nsec)}"
     end
 end
 
@@ -294,11 +291,11 @@ class BrickTree
     def timeRecordsForDate(brick, date)
     end
 
-    def printTimeRecords(date)
+    def printTimeRecords(dateBegin, dateEnd)
         self.traverse_preorder() {|brick, depth|
             print "    " * depth, "#{brick['brick']}:\n"
             brick['timeWorked'].each{ |tr|
-                if(tr.onDate(date)) 
+                if(tr.onDate(dateBegin)) 
                     print "    " * (depth+1), tr, "\n"
                 end
             }
