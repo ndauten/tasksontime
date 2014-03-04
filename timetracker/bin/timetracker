@@ -99,11 +99,16 @@ command [:show,:sh] do |c|
     c.desc 'Show brick time records for day <def:today>'
     c.command [:tr, :time] do |c2|
         c2.action do |global_options,options,args|
-            puts "Time Record for #{options[:d]}\n"
             unless(options[:r].nil?)
-                puts options[:r]
-                exit
+                puts "Time Record for range #{options[:r]}\n"
+                # format : mm.dd.yy-mm.dd.yy
+                dateStr = options[:r].split('-')
+                dateB = dateStr[0].split('.')
+                dateE = dateStr[1].split('.')
+                dateBegin = Time.new("20#{dateB[2]}", dateB[0], dateB[1])
+                dateEnd = Time.new("20#{dateE[2]}", dateE[0], dateE[1])
             else
+                puts "Time Record for #{options[:d]}\n"
                 if(options[:d] == "today")
                     date = Time.now
                 else
