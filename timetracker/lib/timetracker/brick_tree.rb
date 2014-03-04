@@ -20,8 +20,19 @@ class BrickTimeRecord
         @endTime - @startTime
     end
 
+    def onDate(date)
+        date.day == @startTime.day &&
+        date.month == @startTime.month &&
+        date.year == @startTime.year
+    end
+
     def to_s
-        print "Name: #{@name} --- Start Time: #{@startTime} --- End Time: #{@endTime}"
+        #"Name: #{@name}: #{@startTime.hour}:#{@startTime.min} -- #{@endTime.hour}:#{@endTime.min}"
+        stP = @startTime.strftime("%I:%M%p")
+        etP = @endTime.strftime("%I:%M%p")
+        "#{stP} - #{etP} [#{@name}]"
+        #"Name: #{TimeUtils.timeDiffPretty(@startTime.nsec)} --
+        ##{TimeUtils.timeDiffPretty(@endTime.nsec)}"
     end
 end
 
@@ -42,7 +53,7 @@ class Brick
         @timeWorked.push(te)        
     end
     def to_s
-        print "Brick Name: #{@name}, Parent: #{@parent}, Children: #{@children}, Tags: #{@tags}"
+        "Brick Name: #{@name}, Parent: #{@parent}, Children: #{@children}, Tags: #{@tags}"
     end
 end
 
@@ -277,14 +288,19 @@ class BrickTree
         }
     end
 
-    def timeRecordsForDate()
+    #
+    # For the given date and brick: return the array of time records
+    #
+    def timeRecordsForDate(brick, date)
     end
 
     def printTimeRecords(date)
-        traverse_preorder(brickName, indent) {|brick, depth|
+        self.traverse_preorder() {|brick, depth|
             print "    " * depth, "#{brick['brick']}:\n"
-            timeRecordsForDate(date).each{ |tr|
-                print "    " * (depth+1), tr
+            brick['timeWorked'].each{ |tr|
+                if(tr.onDate(date)) 
+                    print "    " * (depth+1), tr, "\n"
+                end
             }
         }
     end

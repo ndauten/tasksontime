@@ -97,6 +97,7 @@ command [:show,:sh] do |c|
     c.command [:tr, :time] do |c2|
         c2.action do |global_options,options,args|
             puts "Time Record for #{options[:d]}\n"
+            $brick_tree.printTimeRecords(Time.now)
             #$brick_tree.printTimeRecords(options[:d]).each {|tr|
                 #puts '\t',tr
             #}
