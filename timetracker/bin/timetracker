@@ -97,10 +97,14 @@ command [:show,:sh] do |c|
     c.command [:tr, :time] do |c2|
         c2.action do |global_options,options,args|
             puts "Time Record for #{options[:d]}\n"
-            $brick_tree.printTimeRecords(Time.now)
-            #$brick_tree.printTimeRecords(options[:d]).each {|tr|
-                #puts '\t',tr
-            #}
+            if(options[:d] == "today")
+                date = Time.now
+            else
+                # Format is mm:dd:yy
+                dateStr = options[:d].split('.')
+                date = Time.new("20#{dateStr[2]}", dateStr[0], dateStr[1])
+            end
+            $brick_tree.printTimeRecords(date)
         end
     end
 
