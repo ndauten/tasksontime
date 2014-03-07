@@ -99,6 +99,13 @@ command [:show,:sh] do |c|
     c.desc 'Show brick time records for day <def:today>'
     c.command [:tr, :time] do |c2|
         c2.action do |global_options,options,args|
+            #-
+            # Default to the current day and set the end to the beginning of
+            # the next day.
+            #-
+            daySecs = (60*60*24)
+            dateBegin = Time.now
+            dateEnd = dateBegin + daySecs
             unless(options[:r].nil?)
                 puts "Time Record for range #{options[:r]}\n"
                 # format : mm.dd.yy-mm.dd.yy
@@ -106,17 +113,17 @@ command [:show,:sh] do |c|
                 dateB = dateStr[0].split('.')
                 dateE = dateStr[1].split('.')
                 dateBegin = Time.new("20#{dateB[2]}", dateB[0], dateB[1])
-                dateEnd = Time.new("20#{dateE[2]}", dateE[0], dateE[1])
+                # Note that we add one day here because the time being returned
+                # is the first hour of the day, and as such we need to include
+                # time up to midnight of the next day.
+                dateEnd = Time.new("20#{dateE[2]}", dateE[0], dateE[1]) + daySecs
             else
                 puts "Time Record for #{options[:d]}\n"
-                if(options[:d] == "today")
-                    dateBegin = Time.now
-                    dateEnd = Time.now
-                else
+                if(options[:d] != "today")
                     # Format is mm:dd:yy
                     dateStr = options[:d].split('.')
                     dateBegin = Time.new("20#{dateStr[2]}", dateStr[0], dateStr[1])
-                    dateEnd = dateBegin
+                    dateEnd = dateBegin + daySecs 
                 end
             end
             $brick_tree.printTimeRecords(dateBegin, dateEnd)
