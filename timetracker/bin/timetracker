@@ -57,10 +57,7 @@ command [:show,:sh] do |c|
 
     c.desc 'Specify a date to show information: format mm.dd.yy'
     c.default_value 'today'
-    c.flag [:d,:day], :default_value => 'today',
-                         :arg_name => "date",
-                         :type => String,
-                         :desc => "The date to show information for"
+    c.flag [:d,:day]
     
     c.desc 'Specify a date range to show information; format mm.dd.yy-mm.dd.yy'
     c.flag [:r,:range]
@@ -99,13 +96,10 @@ command [:show,:sh] do |c|
     c.desc 'Show brick time records for day <def:today>'
     c.command [:tr, :time] do |c2|
         c2.action do |global_options,options,args|
-            #-
-            # Default to the current day and set the end to the beginning of
-            # the next day.
-            #-
+            # Default to the range of the current week 
             daySecs = (60*60*24)
-            dateBegin = Time.now
-            dateEnd = dateBegin + daySecs
+            dateBegin = TimeUtils.getLastSundayTime
+            dateEnd = Time.now 
             unless(options[:r].nil?)
                 puts "Time Record for range #{options[:r]}\n"
                 # format : mm.dd.yy-mm.dd.yy
@@ -118,12 +112,14 @@ command [:show,:sh] do |c|
                 # time up to midnight of the next day.
                 dateEnd = Time.new("20#{dateE[2]}", dateE[0], dateE[1]) + daySecs
             else
-                puts "Time Record for #{options[:d]}\n"
-                if(options[:d] != "today")
-                    # Format is mm:dd:yy
-                    dateStr = options[:d].split('.')
-                    dateBegin = Time.new("20#{dateStr[2]}", dateStr[0], dateStr[1])
-                    dateEnd = dateBegin + daySecs 
+                unless(options[:d].nil?)
+                    puts "Time Record for #{options[:d]}\n"
+                    if(options[:d] != "today")
+                        # Format is mm:dd:yy
+                        dateStr = options[:d].split('.')
+                        dateBegin = Time.new("20#{dateStr[2]}", dateStr[0], dateStr[1])
+                        dateEnd = dateBegin + daySecs 
+                    end
                 end
             end
             $brick_tree.printTimeRecords(dateBegin, dateEnd)

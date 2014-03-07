@@ -63,6 +63,11 @@ module TimeUtils
         time > sunday
     end
 
+    def TimeUtils.getLastSundayTime
+        now = Time.new
+        Time.new(now.year, now.month, now.day - now.wday, 0, 0, 0, "-06:00")
+    end
+
     #
     # Note this assumes right now that we convert the day not worrying about
     # the time.
