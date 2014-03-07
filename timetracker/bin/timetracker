@@ -110,7 +110,8 @@ command [:show,:sh] do |c|
             else
                 puts "Time Record for #{options[:d]}\n"
                 if(options[:d] == "today")
-                    date = Time.now
+                    dateBegin = Time.now
+                    dateEnd = Time.now
                 else
                     # Format is mm:dd:yy
                     dateStr = options[:d].split('.')
