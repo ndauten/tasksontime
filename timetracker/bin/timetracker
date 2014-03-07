@@ -213,10 +213,17 @@ command [:re,:record] do |c|
 
     c.action do |global_options,options,args|
     
+        # check that the brick option was given
         if(options[:b].nil? && options[:brick].nil?)
             help_now!('Must provide a brickname to record time to')
         end
 
+        # make sure the brick exists in the bricktree
+        unless($brick_tree.isBrick(options[:b]))
+            raise "Brick isn't in tree! Please try again" 
+        end
+        
+        # start the timer for the brick record
         ttimer = Timer.new
         puts ttimer.startTime
         quit = false
