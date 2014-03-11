@@ -12,6 +12,7 @@
         [ ] Block move;;
             [ ] With children;;
             [ ] Without children ??? -- leave them at the existing parent;;
+        [ ] Brick Name change;;
     [ ] Metadata Modification;;
         [ ] Add/remove tags from Bricks;;
         [ ] Add/remove tags from TimeRecords;;
