@@ -10,7 +10,7 @@
             [^] No children;;
             [^] With children;;
         [ ] Block move;;
-            [ ] With children;;
+            [x] With children;;
             [ ] Without children ??? -- leave them at the existing parent;;
         [ ] Brick Name change;;
     [ ] Metadata Modification;;
