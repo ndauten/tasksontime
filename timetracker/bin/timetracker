@@ -25,8 +25,10 @@ version Timetracker::VERSION
 #arg_name 'The name of the argument'
 #flag [:f,:flagname]
 #
-#
 
+
+# Global Vars
+$brickTreeFileName = "~/.bricktree.yml"
 
 # specify special date format
 accept(Date) do |string|
@@ -295,11 +297,11 @@ command [:re,:record] do |c|
         unless(quit)
             print "Would you like to record this time to the brick? [y/N] "
             if (gets.chomp() =~ /[yY]/)
-                unless File.exists?(global[:t])
+                unless File.exists?($brickTreeFileName)
                     puts "Data file does not exist. Creating new one."
                     $brick_tree = BrickTree.new
                 else
-                    $brick_tree = YAML.load_file(global[:t])
+                    $brick_tree = YAML.load_file($brickTreeFileName)
                 end
                 $brick_tree.recordTime(options[:t],
                                        options[:b], 
@@ -333,6 +335,7 @@ pre do |global,command,options,args|
         $brick_tree = BrickTree.new
     else
         $brick_tree = YAML.load_file(global[:t])
+        $brickTreeFileName = global[:t]
     end
     true
 end
