@@ -130,8 +130,60 @@ class BrickTree
         @tree.delete(bname)
     end
 
+    # --
+    # Function: removeChildLink
+    #
+    # Description: Take the name of the parent, find the parent, and eleminate
+    # the child name link.
+    #
+    # NOTE: This assumes that we are taking the name of the parent and not the
+    # parent node itself.
+    #
+    # Inputs:
+    #   - parent -- name of parent
+    #   - child -- name of the child
+    # --
     def removeChildLink(parent, child)
+        raise "Brick node: #{parent} does not exist." unless @tree.has_key?(parent)
         @tree[parent]['children'].delete(child)
+    end
+    
+    # -- -- 
+    # Function: addChildLink
+    #
+    # Description: Add a link to the given child in the parent
+    # -- -- 
+    def addChildLink(parent, child)
+        raise "Brick node: #{parent} does not exist." unless @tree.has_key?(parent)
+        @tree[parent]['children'].push(child)
+    end
+
+    # ---
+    #
+    # Function: moveWithChildren
+    #
+    # Description: Move the brick to the given parent including the children.
+    #
+    # Inputs: 
+    #   - BrickName to move
+    #   - Parent to move to
+    # ---
+    def moveWithChildren(bname, newParent)
+        # Make sure the parent exists and find the parent
+        raise "Brick node: #{newParent} does not exist." unless @tree.has_key?(newParent)
+       
+        # Make sure the child exists
+        raise "Brick node: #{bname} does not exist." unless @tree.has_key?(bname)
+
+        # Remove link to the brick from old parent
+        oldParentName = self.getParent(bname)['brick']
+        self.removeChildLink(oldParentName, bname)
+
+        # Update the brick's parent 
+        @tree[bname]['parent'] = newParent
+        
+        # Add link to the brick to the new parent 
+        self.addChildLink(newParent,bname)
     end
 
     def getParent(bname)

@@ -4,6 +4,7 @@
 #require 'test_helper'
 require 'test/unit'
 require '../lib/timetracker/brick_tree.rb'
+require '../lib/timetracker/timer.rb'
 require 'yaml'
 
 class TestBrickTree < Test::Unit::TestCase
@@ -34,6 +35,7 @@ class TestBrickTree < Test::Unit::TestCase
         
         File.open(@test_file_name, 'w') {|f| f << @bt.to_yaml }
     end
+
     def teardown
     end
 
@@ -60,6 +62,39 @@ class TestBrickTree < Test::Unit::TestCase
         puts @bt.to_yaml
     end
 
+    def test_brick_move_with_children
+        tree = BrickTree.new    
+
+        # Create a node three deep on c1 branch
+        tree.addBrick("c1","root",[])
+        tree.addBrick("c11","c1",[])
+        tree.addBrick("c111","c11",[])
+
+        # Create some other top level branches
+        tree.addBrick("c2","root",[])
+        tree.addBrick("c3","root",[])
+        tree.addBrick("c4","root",[])
+        tree.prettyPrintFullTree()
+        
+        # Verify c1 has c11 prior to moving
+        assert(tree.hasChild("c1","c11"))
+        assert(tree.hasChild("root","c1"))
+
+        # Execute the move with children
+        tree.moveWithChildren("c11","c4")
+
+        # Do some checking: c11 should not be a child of c2 and not c1
+        tree.prettyPrintFullTree()
+        assert(tree.hasChild("c4","c11"))
+        assert(!tree.hasChild("c1","c11"))
+
+        # c11 should have c111 as its child still
+        assert(tree.hasChild("c11","c111"))
+
+        # veryify the new parent of c11
+        assert_equal(tree.getParent("c11")['brick'], "c4")
+    end
+
     def test_brick_post_order
         @bt.traverse_postorder("root") {|brick|
             puts brick['brick'] 
@@ -76,7 +111,7 @@ class TestBrickTree < Test::Unit::TestCase
     end
 
     def test_print_btree
-        @bt.prettyPrint("root", 0)
+        #@bt.prettyPrint("root", 0)
     end
     
     def test_print_yaml

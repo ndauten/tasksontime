@@ -197,6 +197,34 @@ command [:rm,:remove] do |c|
     c.default_command :subtree
 end
 
+desc 'Move a new brick'
+arg_name 'brick_id'
+command [:mv,:move] do |c|
+
+    c.desc 'Name of the brick to add'
+    c.flag [:b,:brick]
+
+    c.desc 'Add the new brick to this parent'
+    c.flag [:p,:parent], :default_value => NIL,
+                         :arg_name => "parent",
+                         :type => String,
+                         :desc => "The parent to move the brick to."
+    
+    c.action do |global_options,options,args|
+        # check that the brick option was given
+        if(options[:b].nil? && options[:p].nil?)
+            help_now!('Brick and parent required')
+        end
+        $brick_tree.moveWithChildren(options[:b],options[:p])
+        if(global_options[:verbose])
+            print "\nResulting Tree: \n"
+            $brick_tree.prettyPrintFullTree()
+        end
+    end
+
+    c.default_command :subtree
+end
+
 desc 'Record time'
 arg_name 'time_record'
 command [:re,:record] do |c|
