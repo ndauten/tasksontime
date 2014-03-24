@@ -255,7 +255,11 @@ command [:re,:record] do |c|
         ttimer = Timer.new
         puts ttimer.startTime
         quit = false
-        
+
+        # We don't want to lock the brick tree while time so we first close the
+        # brick tree file, then reopen it once we are ready to write to the
+        # file.
+
         # This thread prints out the timer
         tOut = Thread.new {
             # Prints out the time to STDOUT for the user to see the duration
@@ -291,6 +295,12 @@ command [:re,:record] do |c|
         unless(quit)
             print "Would you like to record this time to the brick? [y/N] "
             if (gets.chomp() =~ /[yY]/)
+                unless File.exists?(global[:t])
+                    puts "Data file does not exist. Creating new one."
+                    $brick_tree = BrickTree.new
+                else
+                    $brick_tree = YAML.load_file(global[:t])
+                end
                 $brick_tree.recordTime(options[:t],
                                        options[:b], 
                                        ttimer.startTime, 
