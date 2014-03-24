@@ -1,0 +1,50 @@
+--- !ruby/object:BrickTree
+tree:
+  root:
+    brick: root
+    parent: ''
+    tags:
+    - all
+    timeWorked: []
+    children:
+    - c1
+    - s2
+  c1:
+    brick: c1
+    parent: root
+    tags:
+    - admin
+    - emai
+    timeWorked: []
+    children:
+    - c11
+  s2:
+    brick: s2
+    parent: root
+    tags: []
+    timeWorked: []
+    children: []
+  c11:
+    brick: c11
+    parent: c1
+    tags:
+    - emai
+    timeWorked:
+    - !ruby/object:BrickTimeRecord
+      startTime: 2014-03-24 11:05:55.225942146 -05:00
+      endTime: 2014-03-24 11:06:05.225942146 -05:00
+      tags: []
+      name: Test task.
+    - !ruby/object:BrickTimeRecord
+      startTime: 2014-03-24 11:05:55.225945502 -05:00
+      endTime: 2014-03-24 11:06:05.225945502 -05:00
+      tags: []
+      name: Test task.
+    children:
+    - c111
+  c111:
+    brick: c111
+    parent: c11
+    tags: []
+    timeWorked: []
+    children: []
