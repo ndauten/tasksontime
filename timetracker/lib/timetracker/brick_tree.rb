@@ -347,6 +347,27 @@ class BrickTree
     def timeRecordsForDate(brick, date)
     end
 
+
+    #-----
+    # Function: printByTimeRecords
+    #
+    # Description: 
+    #   Print out the time records only per day
+    #
+    # Input:
+    #   - Begin Time object
+    #   - End Time object
+    #-----
+    def printByTimeRecords(timeBegin,timeEnd)
+        self.traverse_preorder() {|brick, depth|
+            brick['timeWorked'].each{ |tr|
+                if(tr.inRange(timeBegin,timeEnd)) 
+                    print "\t", tr, " [#{brick['brick']}]\n"
+                end
+            }
+        }
+    end
+
     def printTimeRecords(dateBegin, dateEnd)
         self.traverse_preorder() {|brick, depth|
             print "    " * depth, "#{brick['brick']}:\n"
