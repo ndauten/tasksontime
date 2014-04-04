@@ -75,8 +75,9 @@ command [:show,:sh] do |c|
     #end
     
     c.desc 'Show tree with names'
-    c.command :tree do |c2|
+    c.command [:tree] do |c2|
         c2.action do |global_options,options,args|
+            puts "Showing full tree..."
             $brick_tree.prettyPrintFullTree()
         end
     end
@@ -96,7 +97,7 @@ command [:show,:sh] do |c|
     end
     
     c.desc 'Show brick time records for day <def:today>'
-    c.command [:tr, :time] do |c2|
+    c.command [:tr,:records] do |c2|
         c2.action do |global_options,options,args|
             # Default to the range of the current week 
             daySecs = (60*60*24)
