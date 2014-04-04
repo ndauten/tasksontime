@@ -359,13 +359,21 @@ class BrickTree
     #   - End Time object
     #-----
     def printByTimeRecords(timeBegin,timeEnd)
-        self.traverse_preorder() {|brick, depth|
-            brick['timeWorked'].each{ |tr|
-                if(tr.inRange(timeBegin,timeEnd)) 
-                    print "\t", tr, " [#{brick['brick']}]\n"
-                end
+        t0 = timeBegin
+        t1 = t0+24*60*60
+        while t0 < timeEnd
+            puts t0.strftime("[%m.%d.%y]")
+            self.traverse_preorder() {|brick, depth|
+                brick['timeWorked'].each{ |tr|
+                    #if(tr.inRange(timeBegin,timeEnd)) 
+                    if(tr.inRange(t0,t1)) 
+                        print "\t", tr, " [#{brick['brick']}]\n"
+                    end
+                }
             }
-        }
+            t0 = t1
+            t1 = t1+24*60*60
+        end
     end
 
     def printTimeRecords(dateBegin, dateEnd)
