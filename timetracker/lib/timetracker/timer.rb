@@ -55,7 +55,7 @@ module TimeUtils
         now = Time.new
 
         # Get the date time object for the most recent sunday 12 am
-        sunday = Time.new(now.year, now.month, now.day - now.wday, 0, 0, 0, "-06:00")
+        sunday = TimeUtils.getLastSundayTime
 
         # Do the comparison and return the result 
         #print "Comparing: Last Sunday: #{sunday}, time: #{time}, compare: #{time>sunday}\n"
@@ -63,9 +63,11 @@ module TimeUtils
         time > sunday
     end
 
+    # Calculate the Time object for the most recent sunday by subtracting off
+    # the number of days, hours, mins, and seconds in units of seconds.
     def TimeUtils.getLastSundayTime
         now = Time.new
-        Time.new(now.year, now.month, now.day - now.wday, 0, 0, 0, "-06:00")
+        now - (now.wday*24*60*60) - (now.hour*60*60) - (now.min*60) - now.sec
     end
 
     #
