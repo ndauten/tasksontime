@@ -359,7 +359,7 @@ class BrickTree
     end
     
     # ---------
-    # Function: printSubtreeTodayTime
+    # Function: printSubtreeTotalTime
     #
     # Description: 
     #   Starting at the given root, do a preorder tree traversal to collect
