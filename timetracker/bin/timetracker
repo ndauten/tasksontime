@@ -336,7 +336,7 @@ command [:re,:record] do |c|
                     puts "New end time: #{ttimer.endTime}"
                 end
                 assert("Not implemented yet") if (choice =~ /[g]/)
-                raise "Selected incorrect command" if(choice =! /[btseg]/)
+                raise "Selected incorrect command" unless(choice =~ /[btseg]/)
             end
 
             print "Would you like to record this time to the brick? [y/N] "
