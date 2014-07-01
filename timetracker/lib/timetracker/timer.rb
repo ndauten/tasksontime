@@ -3,6 +3,7 @@
 
 class Timer
     attr_reader :startTime, :endTime
+    attr_writer :startTime, :endTime
     def initialize()
         @startTime = Time.now
     end
