@@ -313,13 +313,11 @@ command [:re,:record] do |c|
         unless(quit)
             print "Would you like to modify any metadata record? [y/N] "
             if (gets.chomp() =~ /[yY]/)
-                print "Which metadata? [b:brick,t:task,s:start,e:end,s:tags] "
+                print "Which metadata? [b:brick,t:task,s:start,e:end,g:tags] "
                 choice = gets.chomp()
-                if (choice =~ /[b]/)
-                    assert("Not implemented yet");
-                elsif (choice =~ /[t]/)
-                    assert("Not implemented yet");
-                elsif (choice =~ /[s]/)
+                assert("Not implemented yet") if (choice =~ /[b]/)
+                assert("Not implemented yet") if (choice =~ /[t]/);
+                if (choice =~ /[s]/)
                     print "New Start Time [Format: MM:SS -- Militar](assumes today's date): "
                     # Note that the start time is just a Time object 
                     newTime = gets.chomp().split(':')
@@ -327,7 +325,8 @@ command [:re,:record] do |c|
                     st = ttimer.startTime
                     ttimer.startTime = Time.new(st.year, st.month, st.day, newTime[0], newTime[1])
                     puts "New start time: #{ttimer.startTime}"
-                elsif (choice =~ /[e]/)
+                end
+                if (choice =~ /[e]/)
                     print "New End Time [Format: MM:SS -- Militar](assumes today's date): "
                     # Note that the start time is just a Time object 
                     newTime = gets.chomp().split(':')
@@ -335,11 +334,9 @@ command [:re,:record] do |c|
                     st = ttimer.endTime
                     ttimer.endTime = Time.new(st.year, st.month, st.day, newTime[0], newTime[1])
                     puts "New end time: #{ttimer.endTime}"
-                elsif (choice =~ /[t]/)
-                    assert("Not implemented yet");
-                else
-                    raise "Selected incorrect command"
                 end
+                assert("Not implemented yet") if (choice =~ /[g]/)
+                raise "Selected incorrect command" if(choice =! /[btseg]/)
             end
 
             print "Would you like to record this time to the brick? [y/N] "
