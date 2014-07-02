@@ -313,7 +313,7 @@ command [:re,:record] do |c|
         unless(quit)
             print "Would you like to modify any metadata record? [y/N] "
             if (gets.chomp() =~ /[yY]/)
-                print "Which metadata? [b:brick,t:task,s:start,e:end,g:tags] "
+                print "Which metadata? [b:brick,t:task,s:start,e:end,g:tags,n:none] "
                 choice = gets.chomp()
                 assert("Not implemented yet") if (choice =~ /[b]/)
                 assert("Not implemented yet") if (choice =~ /[t]/);
@@ -336,7 +336,7 @@ command [:re,:record] do |c|
                     puts "New end time: #{ttimer.endTime}"
                 end
                 assert("Not implemented yet") if (choice =~ /[g]/)
-                raise "Selected incorrect command" unless(choice =~ /[btseg]/)
+                raise "Selected incorrect command" unless(choice =~ /[btsegn]/)
             end
 
             print "Would you like to record this time to the brick? [y/N] "
