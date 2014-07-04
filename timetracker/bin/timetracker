@@ -368,7 +368,7 @@ command [:re,:record] do |c|
         end
     end
 
-    c.desc 'Show tree with names'
+    c.desc 'Manually add a time record'
     c.command [:manual,:ma] do |c2|
         c2.action do |global_options,options,args|
             # check that the brick option was given
