@@ -252,6 +252,12 @@ command [:re,:record] do |c|
     
     c.desc 'Name of the task to record time on'
     c.flag [:t,:task]
+
+    c.desc 'Start time of the task if manual entry [Military hh:mm]'
+    c.flag [:s,:start]
+
+    c.desc 'End time of the task if manual entry [Military hh:mm]'
+    c.flag [:e,:end]
     
     c.desc 'Name of tags to add to time record'
     c.flag [:tags]
@@ -359,6 +365,46 @@ command [:re,:record] do |c|
             #print "\nResulting Tree: \n"
             #$brick_tree.prettyPrintFullTree()
             #puts $brick_tree.to_yaml
+        end
+    end
+
+    c.desc 'Show tree with names'
+    c.command [:manual,:ma] do |c2|
+        c2.action do |global_options,options,args|
+            # check that the brick option was given
+            if(options[:b].nil? && options[:brick].nil?)
+                help_now!('Must provide a brickname to record time to')
+            end
+
+            # make sure the brick exists in the bricktree
+            unless($brick_tree.isBrick(options[:b]))
+                raise "Brick isn't in tree! Please try again" 
+            end
+
+            puts "Manually adding an entry..."
+
+            # Get Time objects for the start and end times
+            raise "Must provide start time" if(options[:s].nil? && options[:start].nil?)
+            raise "Must provide end time" if(options[:e].nil? && options[:end].nil?)
+
+            # Create the time objects, assuming today for the date
+            now = Time.now
+            startTime = Time.new(now.year,now.month,now.day,
+                                 options[:s].split(":")[0],
+                                 options[:s].split(":")[1]);
+            endTime = Time.new(now.year,now.month,now.day,
+                                 options[:e].split(":")[0],
+                                 options[:e].split(":")[1]);
+            $brick_tree.recordTime(options[:t],
+                                   options[:b], 
+                                   startTime, 
+                                   endTime, 
+                                   options[:tags]) 
+            print "Added new task record.\n"
+            print "\tBrick: #{options[:b]}\n" 
+            print "\t Task: #{options[:t]}\n" 
+            print "\tStart: #{startTime}\n"
+            print "\t  End: #{endTime}"
         end
     end
 
