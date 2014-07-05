@@ -18,8 +18,9 @@
         [ ] Add/remove tags from TimeRecords;;
     [!] Record and Modify Time;;
         [x] Timer based record;;
-        [!] Manual adding mechanism;;
-        [ ] Modify aspects of timerecord;;
+        [x] Manual adding mechanism;;
+        [x] Modify aspects of timerecord prior to persistent write;;
+        [ ] Modify aspects of timerecord after record write;;
         [ ] Delete timerecord;;
         [ ] Move timerecord;;
     [!] TaskList;;
