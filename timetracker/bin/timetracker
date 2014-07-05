@@ -186,13 +186,14 @@ command :add do |c|
     end
 end
 
-desc 'Remove a new brick'
+desc 'Remove data'
 arg_name 'brick_id'
 command [:rm,:remove] do |c|
 
     c.desc "Remove all of a subtree starting at the brick provided"
-    c.command [:st,:subtree] do |c|
-        c.action do |global_options,options,args|
+    c.command [:br,:brick] do |c2|
+        # TODO: Add extra options for without child
+        c2.action do |global_options,options,args|
             $brick_tree.removeSubTree(args[0])
             if(global_options[:verbose])
                 then
@@ -212,7 +213,6 @@ command [:rm,:remove] do |c|
         end
     end
 
-    c.default_command :subtree
 end
 
 desc 'Move a new brick'
