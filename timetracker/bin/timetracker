@@ -321,8 +321,19 @@ command [:re,:record] do |c|
             if (gets.chomp() =~ /[yY]/)
                 print "Which metadata? [b:brick,t:task,s:start,e:end,g:tags,n:none] "
                 choice = gets.chomp()
-                assert("Not implemented yet") if (choice =~ /[b]/)
-                assert("Not implemented yet") if (choice =~ /[t]/);
+                if (choice =~ /[b]/)
+                    puts "New brick name? "
+                    while(!$brick_tree.isBrick((name = gets.chomp())))
+                        puts "Brick is not in tree... Try again." 
+                    end
+                    puts "New name: #{name}"
+                    options[:b] = name
+                end
+                if (choice =~ /[t]/);
+                    puts "New task name? "
+                    options[:t] = gets.chomp()
+                    puts "New task: #{options[:t]}"
+                end
                 if (choice =~ /[s]/)
                     print "New Start Time [Format: MM:SS -- Militar](assumes today's date): "
                     # Note that the start time is just a Time object 
