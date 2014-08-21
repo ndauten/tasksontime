@@ -186,7 +186,7 @@ command :add do |c|
     end
 end
 
-desc 'Remove data'
+desc 'Remove brick tree nodes'
 arg_name 'brick_id'
 command [:rm,:remove] do |c|
 
@@ -215,7 +215,7 @@ command [:rm,:remove] do |c|
 
 end
 
-desc 'Move a new brick'
+desc 'Move a brick'
 arg_name 'brick_id'
 command [:mv,:move] do |c|
 
