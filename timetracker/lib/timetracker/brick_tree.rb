@@ -336,8 +336,10 @@ class BrickTree
 
     def printSubtreeTodayTime(brickName="root", indent=0)
         traverse_preorder(brickName, indent) {|brick, depth|
-            timeDiffPretty = TimeUtils.timeDiffPretty(brickDayTimeAggregate(brick['brick']))
-            print "    " * depth, "#{brick['brick']}: [#{timeDiffPretty}]\n"
+            if(brickDayTimeAggregate(brick['brick']) > 0)
+                timeDiffPretty = TimeUtils.timeDiffPretty(brickDayTimeAggregate(brick['brick']))
+                print "    " * depth, "#{brick['brick']}: [#{timeDiffPretty}]\n" 
+            end
         }
     end
 
