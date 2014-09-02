@@ -38,6 +38,10 @@ class Timer
     def timeDiffSecs
         @endTime - @startTime
     end
+
+    def to_s
+        "Start Time: #{@startTime} --> End Time: #{@endTime}"
+    end
 end
 
 module TimeUtils
