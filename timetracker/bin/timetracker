@@ -186,6 +186,42 @@ command :add do |c|
     end
 end
 
+
+#--
+# Archive
+#
+# Description:
+#   We can archive any object in the tree, including both bricks and time
+#   records. 
+#--
+desc 'Archive brick tree nodes'
+command [:ar,:archive] do |c|
+
+    c.desc "Remove all of a subtree starting at the brick provided"
+    c.command [:br,:brick] do |c2|
+        # TODO: Add extra options for without child
+        c2.action do |global_options,options,args|
+            raise "Not yet implemented"
+            #$brick_tree.removeSubTree(args[0])
+            #if(global_options[:verbose])
+                #then
+                #print "\nResulting Tree: \n"
+                #$brick_tree.prettyPrintFullTree()
+                #$brick_tree.to_yaml
+            #end
+        end
+    end
+
+    c.action do |global_options,options,args|
+        raise "Not yet implemented"
+        if(global_options[:verbose])
+            then
+            print "\nResulting Tree: \n"
+            $brick_tree.prettyPrintFullTree()
+        end
+    end
+end
+
 desc 'Remove brick tree nodes'
 arg_name 'brick_id'
 command [:rm,:remove] do |c|
@@ -356,8 +392,8 @@ command [:re,:record] do |c|
                 raise "Selected incorrect command" unless(choice =~ /[btsegn]/)
             end
 
-            print "Would you like to record this time to the brick? [y/N] "
-            if (gets.chomp() =~ /[yY]/)
+            print "Would you like to record this time to the brick? [Y/n] "
+            unless (gets.chomp() =~ /[nN]/)
                 unless File.exists?($brickTreeFileName)
                     puts "Data file does not exist. Creating new one."
                     $brick_tree = BrickTree.new
@@ -369,6 +405,13 @@ command [:re,:record] do |c|
                                        ttimer.startTime, 
                                        ttimer.endTime, 
                                        options[:tags]) 
+                print "Added new task record.\n"
+                print "\tBrick: #{options[:b]}\n" 
+                print "\t Task: #{options[:t]}\n" 
+                print "\tStart: #{ttimer.startTime}\n"
+                print "\t  End: #{ttimer.endTime}"
+            else
+                puts "Cancelled recording."
             end
         end
 
