@@ -27,8 +27,17 @@ class Timer
 
     def printTimeDiffNow
         seconds = Time.now - @startTime
-        print "\n\t**** The time difference: "
+        print "**** The time difference: "
         print "%02d:%02d:%02d ****\n" % [
+            seconds / (60*60),
+            seconds / 60 % 60,
+            seconds % 60
+        ]
+    end
+    
+    def timeDiffNow
+        seconds = Time.now - @startTime
+        "%02d:%02d:%02d" % [
             seconds / (60*60),
             seconds / 60 % 60,
             seconds % 60
@@ -40,7 +49,7 @@ class Timer
     end
 
     def to_s
-        "Start Time: #{@startTime} --> End Time: #{@endTime}"
+        "#{@startTime.strftime("%r")} --> #{@endTime.strftime("%r")} [delta: #{timeDiffNow}]"
     end
 end
 

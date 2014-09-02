@@ -342,8 +342,8 @@ command [:re,:record] do |c|
                 puts ttimer.start
             elsif (comm =~ /c/) then
                 ttimer.stop
+                puts "\n  #{ttimer}\n\n"
                 tOut.exit
-                puts "Stopping timer with time tracked: #{ttimer.printTimeDiffNow}"
                 break
             elsif (comm =~ /q/) then
                 tOut.exit
