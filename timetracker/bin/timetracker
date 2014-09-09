@@ -295,6 +295,9 @@ command [:re,:record] do |c|
     c.desc 'End time of the task if manual entry [Military hh:mm]'
     c.flag [:e,:end]
     
+    c.desc 'Date to add the time to[mm.dd.yy]'
+    c.flag [:d,:date]
+    
     c.desc 'Name of tags to add to time record'
     c.flag [:tags]
 
@@ -443,6 +446,11 @@ command [:re,:record] do |c|
 
             # Create the time objects, assuming today for the date
             now = Time.now
+            unless(options[:d].nil? && options[:date].nil?)
+                parseDate = options[:d].split(".")
+                now = Time.new(parseDate[2],parseDate[0],parseDate[1])
+            end
+            
             startTime = Time.new(now.year,now.month,now.day,
                                  options[:s].split(":")[0],
                                  options[:s].split(":")[1]);
