@@ -241,12 +241,17 @@ class BrickTree
         #sum
     #end
     
-    def brickTotalTimeDirect(bname)
+    def brickTotalTimeDirect(bname, timeBegin=0, timeEnd=0)
         # Check that the parent node is in the tree
         raise "<bttd> Brick node: #{bname} does not exist." unless @tree.has_key?(bname)
         sum = 0
         @tree[bname]['timeWorked'].each do |btr|
-            sum = sum + btr.duration
+            if(timeBegin == 0) 
+                then sum = sum + btr.duration
+            else if(btr.inRange(timeBegin,timeEnd))
+                then sum = sum + btr.duration
+            end
+            end
         end
         sum
     end
@@ -270,11 +275,11 @@ class BrickTree
         brickAggregateTime
     end
 
-    def brickTotalTimeAggregate(brickName)
+    def brickTotalTimeAggregate(brickName, timeBegin=0, timeEnd=0)
         raise "Brick node: #{brickName} does not exist can't calculate time." unless @tree.has_key?(brickName)
         brickAggregateTime = 0
         self.traverse_postorder(brickName) do |brick|
-            brickAggregateTime += brickTotalTimeDirect(brick['brick'])
+            brickAggregateTime += brickTotalTimeDirect(brick['brick'], timeBegin, timeEnd)
         end
         brickAggregateTime
     end
@@ -397,10 +402,13 @@ class BrickTree
     #   total brick work times. While going through print out the tree, given
     #   the preorder traversal. 
     # ---------
-    def printSubtreeTotalTime(brickName="root", indent=0)
+    def printSubtreeTotalTime(brickName="root", indent=0, timeBegin=0, timeEnd=0)
         traverse_preorder(brickName, indent) {|brick, depth|
-            timeDiffPretty = TimeUtils.timeDiffPretty(brickTotalTimeAggregate(brick['brick']))
-            print "    " * depth, "#{brick['brick']}: [#{timeDiffPretty}]\n"
+            timeInSecs = brickTotalTimeAggregate(brick['brick'], timeBegin, timeEnd)
+            unless(timeInSecs == 0)
+                timeDiffPretty = TimeUtils.timeDiffPretty(timeInSecs)
+                print "    " * depth, "#{brick['brick']}: [#{timeDiffPretty}]\n"
+            end
         }
     end
 

@@ -91,7 +91,20 @@ command [:show,:sh] do |c|
     c.desc 'Show show time worked for each brick'
     c.command [:total] do |c2|
         c2.action do |global_options,options,args|
-            $brick_tree.printSubtreeTotalTime()
+            timeBegin = 0
+            timeEnd = 0
+            unless(options[:r].nil?)
+                timeBegin, timeEnd = 
+                    TimeUtils.getBeginEndTimes(
+                        options[:r].split('-')[0],
+                        options[:r].split('-')[1]
+                    )
+            else
+                unless(options[:d].nil?)
+                    timeBegin, timeEnd = TimeUtils.getBeginEndTimes(options[:d],options[:d])
+                end
+            end
+            $brick_tree.printSubtreeTotalTime("root",0,timeBegin,timeEnd)
         end
     end
     
