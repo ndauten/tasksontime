@@ -332,7 +332,7 @@ class BrickTree
             brickTimePretty = TimeUtils.timeDiffPretty(brickWeeklyTimeAggregate(name))
             #print "   "*(level), '- ', "#{name} [#{brickTimePretty}]: ", "."*5," #{brickTimePretty}\n"
             perc = ( (timeInSecs / @base) * 100 ).round
-            print "    "*(level), '- ', "#{name} \t\t\t\t\t\t\t[#{brickTimePretty} -- #{perc}%] \n"
+            print "    "*(level), '- ', "#{name} [#{brickTimePretty} -- #{perc}%] \n"
         end
         @tree[name]['children'].each { |brickName|
             raise "Pretty Print: child node #{brickName} is not in the tree." unless @tree.has_key?(brickName)
