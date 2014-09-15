@@ -327,10 +327,12 @@ class BrickTree
     # attempts to pretty print the tree.
     def prettyPrint(name, level)
         timeInSecs = brickWeeklyTimeAggregate(name)
+        @base = timeInSecs if(level == 0)
         unless(timeInSecs == 0)
             brickTimePretty = TimeUtils.timeDiffPretty(brickWeeklyTimeAggregate(name))
             #print "   "*(level), '- ', "#{name} [#{brickTimePretty}]: ", "."*5," #{brickTimePretty}\n"
-            print "    "*(level), '- ', "#{name} [#{brickTimePretty}] \n"
+            perc = ( (timeInSecs / @base) * 100 ).round
+            print "    "*(level), '- ', "#{name} \t\t\t\t\t\t\t[#{brickTimePretty} -- #{perc}%] \n"
         end
         @tree[name]['children'].each { |brickName|
             raise "Pretty Print: child node #{brickName} is not in the tree." unless @tree.has_key?(brickName)
