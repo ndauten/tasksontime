@@ -185,6 +185,42 @@ class BrickTree
         # Add link to the brick to the new parent 
         self.addChildLink(newParent,bname)
     end
+    
+    # ---
+    #
+    # Function: renameBrick
+    #
+    # Description: Rename the particular brick
+    #
+    # Inputs: 
+    #   - new Name: Old brick name
+    #   - oldName:  New brick name
+    # ---
+    def renameBrick(oldName, newName)
+        # Raise an error if the new name is already taken
+        raise "Brick node: #{newName} is already in the tree." if @tree.has_key?(newName)
+       
+        # Make sure the child exists
+        raise "Brick node: #{oldName} does not exist." unless @tree.has_key?(oldName)
+
+        # Remove link to the old brick name from old parent
+        parentName = self.getParent(oldName)['brick']
+        self.removeChildLink(parentName, oldName)
+        
+        # Add link to the parent for the new brick name
+        self.addChildLink(parentName ,newName)
+        
+        #--
+        # Update the brick's name
+        #--
+        # Add hash element to tree under new name
+        @tree[newName] = @tree[oldName]
+        @tree[newName]['brick'] = newName
+        @tree[newName]['parent'] = parentName
+
+        # Erase old hash element
+        @tree.delete(oldName)
+    end
 
     def getParent(bname)
         @tree[@tree[bname]["parent"]]
@@ -428,8 +464,13 @@ class BrickTree
             #indent += 1
         #}
     end
-
-    def to_s(indent=0)
-        printSubtree("root", 0)
+    
+    def to_s
+        treeStr = ""
+        self.traverse_preorder() {|brick, depth|
+            treeStr = treeStr + ("    " * depth) + "#{brick['brick']}:\n"
+        }
+        return treeStr
     end
+    
 end

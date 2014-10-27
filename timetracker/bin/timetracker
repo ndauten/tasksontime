@@ -271,6 +271,9 @@ command [:mv,:move] do |c|
     c.desc 'Name of the brick to add'
     c.flag [:b,:brick]
 
+    c.desc 'New name of the brick'
+    c.flag [:n,:newName]
+
     c.desc 'Add the new brick to this parent'
     c.flag [:p,:parent], :default_value => NIL,
                          :arg_name => "parent",
@@ -279,13 +282,28 @@ command [:mv,:move] do |c|
     
     c.action do |global_options,options,args|
         # check that the brick option was given
-        if(options[:b].nil? && options[:p].nil?)
+        if(options[:b].nil? || options[:p].nil?)
             help_now!('Brick and parent required')
         end
         $brick_tree.moveWithChildren(options[:b],options[:p])
         if(global_options[:verbose])
             print "\nResulting Tree: \n"
             $brick_tree.prettyPrintFullTree()
+        end
+    end
+    
+    c.desc 'Rename the selected brick'
+    c.command [:rename,:re] do |c2|
+        c2.action do |global_options,options,args|
+            # check that the brick option was given
+            if(options[:b].nil? || options[:n].nil?)
+                help_now!('Old brick and new name required')
+            end
+            $brick_tree.renameBrick(options[:b],options[:n])
+            if(global_options[:verbose])
+                print "\nResulting Tree: \n"
+                puts $brick_tree
+            end
         end
     end
 
