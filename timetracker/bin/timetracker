@@ -326,8 +326,11 @@ command [:re,:record] do |c|
     c.desc 'End time of the task if manual entry [Military hh:mm]'
     c.flag [:e,:end]
     
-    c.desc 'Date to add the time to[mm.dd.yy]'
-    c.flag [:d,:date]
+    #c.desc 'Date to add the time to [mm.dd.yyyy]'
+    c.flag [:d,:date], :default_value => Time.now.strftime("%m-%d-%Y"),
+                       :arg_name => "date",
+                       :type => String,
+                       :desc => 'Date to add the time to [mm.dd.yyyy]'
     
     c.desc 'Name of tags to add to time record'
     c.flag [:tags]
@@ -477,11 +480,15 @@ command [:re,:record] do |c|
 
             # Create the time objects, assuming today for the date
             now = Time.now
+
+            # If a date is specified modify the day 
             unless(options[:d].nil? && options[:date].nil?)
                 parseDate = options[:d].split(".")
+                raise "The date '#{parseDate[2]}' is not a full year" if(parseDate[2].length < 4)
                 now = Time.new(parseDate[2],parseDate[0],parseDate[1])
             end
             
+            # Create the new start and end time objects
             startTime = Time.new(now.year,now.month,now.day,
                                  options[:s].split(":")[0],
                                  options[:s].split(":")[1]);
