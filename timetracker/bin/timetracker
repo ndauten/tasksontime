@@ -327,7 +327,7 @@ command [:re,:record] do |c|
     c.flag [:e,:end]
     
     #c.desc 'Date to add the time to [mm.dd.yyyy]'
-    c.flag [:d,:date], :default_value => Time.now.strftime("%m-%d-%Y"),
+    c.flag [:d,:date], :default_value => Time.now.strftime("%m.%d.%Y"),
                        :arg_name => "date",
                        :type => String,
                        :desc => 'Date to add the time to [mm.dd.yyyy]'
@@ -483,7 +483,7 @@ command [:re,:record] do |c|
 
             # If a date is specified modify the day 
             unless(options[:d].nil? && options[:date].nil?)
-                parseDate = options[:d].split(".")
+                parseDate = options[:date].split(".")
                 raise "The date '#{parseDate[2]}' is not a full year" if(parseDate[2].length < 4)
                 now = Time.new(parseDate[2],parseDate[0],parseDate[1])
             end
