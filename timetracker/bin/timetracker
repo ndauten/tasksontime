@@ -62,6 +62,9 @@ command [:show,:sh] do |c|
     
     c.desc 'Specify a date range to show information; format mm.dd.yy-mm.dd.yy'
     c.flag [:r,:range]
+    
+    c.desc 'Show briks starting at brick root (default: root).'
+    c.flag [:b,:brickroot]
 
     #c.action do |global_options,options,args|
 
@@ -72,6 +75,14 @@ command [:show,:sh] do |c|
 
         #puts "list command ran"
     #end
+    
+    c.desc 'Show all bricks'
+    c.command [:bricks] do |c2|
+        c2.action do |global_options,options,args|
+            puts "Showing full tree..."
+            print $brick_tree
+        end
+    end
     
     c.desc 'Show tree with names'
     c.command [:tree] do |c2|
