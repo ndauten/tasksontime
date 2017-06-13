@@ -9,6 +9,7 @@ use DateTime;
 use Scalar::Util qw(looks_like_number);
 use Switch;
 use Time::ParseDate;
+use Mac::Growl;
 
 
 #===============================================================================
@@ -37,18 +38,24 @@ sub mail_notification(){
     #print "OK. Log says:\n", $Mail::Sendmail::log;
 }
 
+Mac::Growl::RegisterNotifications(
+    'Pomo Timer', # application name
+    [ 'pomocomplete' ],  # notifications this app sends
+    [ 'pomocomplete' ],  # enable these notifications
+);
+
 sub notify_completion()
 {
     my $now_string = strftime "%a %b %e %H:%M:%S %Y", localtime;
 
     #&mail_notification($now_string);
-    system("DISPLAY=:2.0 ./naughty-notify.sh");
-    system("DISPLAY=:1.0 ./naughty-notify.sh");
+    #system("DISPLAY=:2.0 ./naughty-notify.sh");
+    #system("DISPLAY=:1.0 ./naughty-notify.sh");
 
     #foreach my $i (1 .. 190000){print("KABOOM!!!!");}
     #system('./asciiquarium');
 
-    if(0)
+    if(1)
     {
         if (`uname` ne "Linux"){
             #&mail_notification($now_string);
@@ -56,6 +63,8 @@ sub notify_completion()
             system("DISPLAY=:1.0 ./naughty-notify.sh");
         } else {    
             system('osascript ./mac_growl_notify.scpt');
+            #PostNotification("MyPerlApp", $notificationName, $notificationTitle,
+            #$notificationDescription[, $sticky, $priority, $image_path]);
             #system('say "You are done! Successful completion of Pomodoro!"');
         }
     }
