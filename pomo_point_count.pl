@@ -123,6 +123,10 @@ if($summary){
     &print_day_stats($today);
     print "\n";
 }
-for(keys %tags){
-    print("\n\tPomos for $_ is $tags{$_}");
+printf "\nProject Allocation:\n";
+foreach my $_ (sort {$tags{$b} cmp $tags{$a}} keys %tags){
+    printf("\n%15s: %2s/%s (%.02f%s)",$_,$tags{$_},$tpomos,$tags{$_}/$tpomos,'%');
 }
+# to sort values use keys to lookup the values and a compare block to compare
+# them
+print "\n"
