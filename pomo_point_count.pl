@@ -130,8 +130,8 @@ if($summary){
     print "\n";
 }
 printf "\nProject Allocation:\n";
-foreach my $_ (sort {$tags{$b} cmp $tags{$a}} keys %tags){
-    printf("\n%15s: %2s/%s (%.02f%s)",$_,$tags{$_},$tpomos,$tags{$_}/$tpomos,'%');
+foreach my $key (sort {$tags{$b} cmp $tags{$a}} keys %tags){
+    printf("\n%15s: %3s/%s (%.02f%s)",$key,$tags{$key},$tpomos,$tags{$key}/$tpomos,'%');
 }
 # to sort values use keys to lookup the values and a compare block to compare
 # them
