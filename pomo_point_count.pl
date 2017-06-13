@@ -6,6 +6,7 @@ use Getopt::Long;
 
 my ($points, $pomos, $plan) = (0,0,0);
 my ($tpoints, $tpomos, $tplan, $texp) = (0,0,0);
+my %tags;
 my @days = qw/Sunday Monday Tuesday Wednesday Thursday Friday Saturday/;
 
 my $dt = DateTime->now()->subtract( hours => 6);
@@ -86,11 +87,26 @@ sub print_day_stats(){
             }
         }
         if($flag){
-            if(/\|(x+)\]/){$pomos+=length($1);}
+            if(/\|(x+)\]/){
+                $pomos+=length($1);
+            }
             # Match for counting points
-            if(/\[x\].*\[.*\|([[\d]+|\.[\d]+|\d\.[\d]+])\|.*\|.*\]/){ $points+=int($1); }
+            if(/\[x\].*\[.*\|([[\d]+|\.[\d]+|\d\.[\d]+])\|.*\|.*\]/){ 
+                $points+=int($1); 
+            }
             # Match for counting planned pomos
-            if(/\[.*\|.*\|([\d]+[\.[\d]*|""])\|.*\]/){$plan+=$1;}
+            if(/\[.*\|.*\|([\d]+[\.[\d]*|""])\|.*\]/){
+                $plan+=$1;
+            }
+            if(/\[.\].*\[(.+)\|.*\|.*\|(x+)\]/){
+                if(exists($tags{$1}))
+                {
+                    my $newct = $tags{$1} + length($2);
+                    $tags{$1} = $newct;
+                }else{
+                    $tags{$1} = length($2);
+                }
+            }
         }
     }
 }
@@ -106,4 +122,7 @@ if($summary){
     print "$today:  ";
     &print_day_stats($today);
     print "\n";
+}
+for(keys %tags){
+    print("\n\tPomos for $_ is $tags{$_}");
 }
