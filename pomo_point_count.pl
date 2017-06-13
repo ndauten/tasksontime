@@ -98,13 +98,19 @@ sub print_day_stats(){
             if(/\[.*\|.*\|([\d]+[\.[\d]*|""])\|.*\]/){
                 $plan+=$1;
             }
-            if(/\[.\].*\[(.+)\|.*\|.*\|(x+)\]/){
-                if(exists($tags{$1}))
-                {
-                    my $newct = $tags{$1} + length($2);
-                    $tags{$1} = $newct;
+            if(/\[.\].*\[(.*)\|.*\|.*\|(x+)\]/){
+                my $p;
+                if(length($1)){
+                    $p = $1;
                 }else{
-                    $tags{$1} = length($2);
+                    $p = "noname";
+                }
+                if(exists($tags{$p}))
+                {
+                    my $newct = $tags{$p} + length($2);
+                    $tags{$p} = $newct;
+                }else{
+                    $tags{$p} = length($2);
                 }
             }
         }
