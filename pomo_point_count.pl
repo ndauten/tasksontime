@@ -99,18 +99,22 @@ sub print_day_stats(){
                 $plan+=$1;
             }
             if(/\[.\].*\[(.*)\|.*\|.*\|(x+)\]/){
-                my $p;
-                if(length($1)){
-                    $p = $1;
-                }else{
-                    $p = "noname";
-                }
-                if(exists($tags{$p}))
-                {
-                    my $newct = $tags{$p} + length($2);
+                my $newct;
+                my ($p, $others) = split(',', $1, 2);
+                $p = "noname" unless(length($p));
+                if(exists($tags{$p})){
+                    $newct = $tags{$p} + length($2);
                     $tags{$p} = $newct;
                 }else{
                     $tags{$p} = length($2);
+                }
+                if(length($others)){
+                    if(exists($tags{$1})){
+                        $newct = $tags{$1} + length($2);
+                        $tags{$1} = $newct;
+                    }else{
+                        $tags{$1} = length($2);
+                    }
                 }
             }
         }
@@ -129,9 +133,9 @@ if($summary){
     &print_day_stats($today);
     print "\n";
 }
-printf "\nProject Allocation:\n";
+printf "\nPrimary Project Allocation:\n";
 foreach my $key (sort {$tags{$b} cmp $tags{$a}} keys %tags){
-    printf("\n%15s: %3s/%s (%.02f%s)",$key,$tags{$key},$tpomos,$tags{$key}/$tpomos,'%');
+    printf("\n%15s: %3s/%s (%.02f%s)",$key,$tags{$key},$tpomos,$tags{$key}/$tpomos,'%') unless($key =~ /,/);
 }
 # to sort values use keys to lookup the values and a compare block to compare
 # them
