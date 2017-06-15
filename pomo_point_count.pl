@@ -135,11 +135,11 @@ if($summary){
 }
 printf "\nPrimary Project Allocation:\n";
 foreach my $key (sort {$tags{$b} <=> $tags{$a} or $a cmp $b} keys %tags){
-    printf("\n%15s: %3s/%s (%.02f%s)",$key,$tags{$key},$tpomos,$tags{$key}/$tpomos,'%') unless($key =~ /,/);
+    printf("\n%30s: %3s/%s (%.02f%s)",$key,$tags{$key},$tpomos,$tags{$key}/$tpomos,'%') unless($key =~ /,/);
 }
 printf "\n\nSecondary Project Allocation:\n";
 foreach my $key (sort {$tags{$b} <=> $tags{$a} or $a cmp $b} keys %tags){
-    printf("\n%15s: %3s/%s (%.02f%s)",$key,$tags{$key},$tpomos,$tags{$key}/$tpomos,'%') if($key =~ /,/);
+    printf("\n%30s: %3s/%s (%.02f%s)",$key,$tags{$key},$tpomos,$tags{$key}/$tpomos,'%') if($key =~ /,/);
 }
 # to sort values use keys to lookup the values and a compare block to compare
 # them
