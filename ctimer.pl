@@ -72,7 +72,16 @@ sub notify_completion()
 
 sub printStats()
 {
-    system("./pomo_point_count.pl -f ../today.txt -s");
+    my $dayofweek = DateTime->now()->day_name();
+    my ($day) = @_;
+    if($day =~ /s/)
+    {
+        system("./pomo_point_count.pl -f ../today.txt -s");
+    }
+    else
+    {
+        system("./pomo_point_count.pl -f ../today.txt -day $dayofweek");
+    }
 }
 
 # Subtract from the running count of pomodoros
@@ -138,7 +147,7 @@ sub do_pomodoro(){
         $|++;
         my $time = time;
         last if ($time >= $end_time);
-        printf("\r\t[ %02d:%02d:%02d ] -- command [p,f,v,r,q,s]? %s",
+        printf("\r\t[ %02d:%02d:%02d ] -- command [p,f,v,r,q,s,t]? %s",
             ($end_time - $time) / (60*60),
             ($end_time - $time) / (   60) % 60,
             ($end_time - $time)           % 60,
@@ -179,7 +188,11 @@ sub do_pomodoro(){
                 return 0;
             }
             if($input eq 's'){
-                &printStats();
+                &printStats('s');
+                print "\n";
+            }
+            if($input eq 't'){
+                &printStats('t');
                 print "\n";
             }
             if($input eq 'q'){
@@ -195,24 +208,12 @@ sub do_pomodoro(){
 
 sub ask_for_action_and_get_choice()
 {
-    print "\nWould you like to: " .
-          "\n". 
-          "\n\t- [a] add minutes" . 
-          "\n\t- [b] take a break" . 
-          "\n\t- [c] continue from the completion of the last pomodoro" .
-          "\n\t- [d] delete count pomodoros" .
-          "\n\t- [l] list pomodoro count" .
-          "\n\t- [m] capture pomodoros from duration and start new" .
-          "\n\t- [n] start a new pomodoro now".
-          "\n\t- [r] reset pomodoro count" .
-          "\n\t- [s] print weekly stats from today.txt" .
-          "\n\t- [q] quit? ";
-    print "\n\nAction: ";
+    print "\nAction (h for help): ";
     chomp(my $action = <STDIN>);
-    while($action !~ /^[abcdlmnrsq]$/)
+    while($action !~ /^[abcdhlmnrstq]$/)
     {
         print "\nThe option $action does not exist. Please try again" .
-              "[a,b,c,d,n,m,q,r,s]: ";
+              "[a,b,c,d,n,m,q,r,s,t]: ";
         chomp($action = <STDIN>);
     }
     return $action;
@@ -319,6 +320,20 @@ while (1)
                 print "\n\tERROR: $num_pomos is not a positive integer\n";
             }
         }
+        case 'h'
+        {
+            print "\n\t- [a] add minutes" . 
+                  "\n\t- [b] take a break" . 
+                  "\n\t- [c] continue from the completion of the last pomodoro" .
+                  "\n\t- [d] delete count pomodoros" .
+                  "\n\t- [l] list pomodoro count" .
+                  "\n\t- [m] capture pomodoros from duration and start new" .
+                  "\n\t- [n] start a new pomodoro now".
+                  "\n\t- [r] reset pomodoro count" .
+                  "\n\t- [s] print weekly stats from today.txt" .
+                  "\n\t- [t] print today's stats from today.txt" .
+                  "\n\t- [q] quit? \n";
+        }
         # TODO: Add a continuous mode here to allow for free flow 
         # case 'f'
         # {
@@ -361,7 +376,11 @@ while (1)
         }
         case 's'
         {
-            &printStats();
+            &printStats('s');
+        }
+        case 't'
+        {
+            &printStats('t');
         }
         case 'q'
         {
@@ -374,7 +393,7 @@ while (1)
 
     }
    
-    next if ($action =~ /[rlads]/);
+    next if ($action =~ /[rladhst]/);
     
     my $result = &do_pomodoro($s, $minutes);
 
