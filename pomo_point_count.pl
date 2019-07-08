@@ -7,9 +7,8 @@ use Getopt::Long;
 my ($points, $pomos, $plan) = (0,0,0);
 my ($tpoints, $tpomos, $tplan, $texp) = (0,0,0);
 my %tags;
+my %tagsplanned;
 my @days = qw/Sunday Monday Tuesday Wednesday Thursday Friday Saturday/;
-
-my $dt = DateTime->now()->subtract( hours => 6);
 
 sub backup(){
     print "Backing up to stats file: $_[0]\n\n";
@@ -18,7 +17,8 @@ sub backup(){
 }
 
 #### OPTIONS ####
-my $today = $dt->day_name; 
+my $today = DateTime->now()->subtract( hours => 6);
+my $date = ''; 
 my $file = 'today.txt';
 my $help = '';
 my $summary = '';
@@ -29,6 +29,7 @@ GetOptions ('summary' => \$summary,
             'help' => \$help, 
             'file=s' => \$file, 
             'day=s' => \$today,
+            'date=s' => \$date,
             'write' => \$write,
             'backup' => \$backup
 );
@@ -46,8 +47,17 @@ if($help){
 ### Time Init and Print Out Week to Screen ###
 my $now = localtime;
 my $dayofweek = DateTime->now()->dow;
+my $dt = '';
+my $dtf = '';
+$dt = DateTime->now()->subtract( hours => 6);
 $dt->subtract( days => $dayofweek );
-my $dtf = $dt->clone();
+if($date){
+    my @dateArr = split('\.',"$date");
+    $dt->set(year=>$dateArr[2]);
+    $dt->set(month=>$dateArr[0]);
+    $dt->set(day=>$dateArr[1]);
+}
+$dtf = $dt->clone();
 $dtf->add( days=>6 );
 my $l1 = sprintf "|  Sunday %s.%s.%s ---> Saturday %s.%s.%s  |",
     $dt->month,$dt->day,$dt->year,$dtf->month,$dtf->day,$dtf->year;
@@ -96,24 +106,28 @@ sub print_day_stats(){
             }
             # Match for counting planned pomos
             if(/\[.*\|.*\|([\d]+[\.[\d]*|""])\|.*\]/){
-                $plan+=$1;
+                $plan+=int($1);
             }
-            if(/\[.\].*\[(.*)\|.*\|.*\|(x+)\]/){
+            if(/\[.\].*\[(.*)\|.*\|([\d]+[\.[\d]*|""])\|(x*)\]/){
                 my $newct;
                 my ($p, $others) = split(',', $1, 2);
                 $p = "noname" unless(length($p));
                 if(exists($tags{$p})){
-                    $newct = $tags{$p} + length($2);
+                    $newct = $tags{$p} + length($3);
                     $tags{$p} = $newct;
+                    $tagsplanned{$p} = $tagsplanned{$p} + $2;
                 }else{
-                    $tags{$p} = length($2);
+                    $tags{$p} = length($3);
+                    $tagsplanned{$p} = $2;
                 }
                 if(length($others)){
                     if(exists($tags{$1})){
-                        $newct = $tags{$1} + length($2);
+                        $newct = $tags{$1} + length($3);
                         $tags{$1} = $newct;
+                        $tagsplanned{$1} = $tagsplanned{$p} + $2;
                     }else{
-                        $tags{$1} = length($2);
+                        $tags{$1} = length($3);
+                        $tagsplanned{$1} = $2;
                     }
                 }
             }
@@ -133,13 +147,17 @@ if($summary){
     &print_day_stats($today);
     print "\n";
 }
-printf "\nPrimary Project Allocation:\n";
+printf "\nPrimary Project Worked:\n";
 foreach my $key (sort {$tags{$b} <=> $tags{$a} or $a cmp $b} keys %tags){
     printf("\n%30s: %3s/%s (%.02f%s)",$key,$tags{$key},$tpomos,$tags{$key}/$tpomos,'%') unless($key =~ /,/);
 }
-printf "\n\nSecondary Project Allocation:\n";
+printf "\n\nSecondary Project Worked:\n";
 foreach my $key (sort {$tags{$b} <=> $tags{$a} or $a cmp $b} keys %tags){
     printf("\n%30s: %3s/%s (%.02f%s)",$key,$tags{$key},$tpomos,$tags{$key}/$tpomos,'%') if($key =~ /,/);
+}
+printf "\n\nPrimary Project Allocation:\n";
+foreach my $key (sort {$tagsplanned{$b} <=> $tagsplanned{$a} or $a cmp $b} keys %tagsplanned){
+    printf("\n%30s: %3s/%s (%.02f%s)",$key,$tagsplanned{$key},$tplan,$tagsplanned{$key}/$tplan,'%') unless($key =~ /,/);
 }
 # to sort values use keys to lookup the values and a compare block to compare
 # them
