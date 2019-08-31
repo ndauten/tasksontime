@@ -116,29 +116,31 @@ sub print_day_stats(){
                 $points+=int($1); 
             }
             # Match for counting planned pomos
-            if(/\[.*\|.*\|([\d]+[\.[\d]*|""])\|.*\]/){
+            if(/\[.*\|.*\|(\d+(\.\d*)?)\|.*\]/){
                 $plan+=int($1);
             }
-            if(/\[.\].*\[(.*)\|.*\|([\d]+[\.[\d]*|""])\|(x*)\]/){
+            if(/\[.\].*\[(.*)\|.*\|(\d+(\.\d*)?|)\|(x*)\]/){
+                my $planned = 0;
                 my $newct;
                 my ($p, $others) = split(',', $1, 2);
                 $p = "noname" unless(length($p));
+                if($2) {$planned = $2;}
                 if(exists($tags{$p})){
-                    $newct = $tags{$p} + length($3);
+                    $newct = $tags{$p} + length($4);
                     $tags{$p} = $newct;
-                    $tagsplanned{$p} = $tagsplanned{$p} + $2;
+                    $tagsplanned{$p} = $tagsplanned{$p} + $planned;
                 }else{
-                    $tags{$p} = length($3);
-                    $tagsplanned{$p} = $2;
+                    $tags{$p} = length($4);
+                    $tagsplanned{$p} = $planned;
                 }
                 if(length($others)){
                     if(exists($tags{$1})){
-                        $newct = $tags{$1} + length($3);
+                        $newct = $tags{$1} + length($4);
                         $tags{$1} = $newct;
-                        $tagsplanned{$1} = $tagsplanned{$p} + $2;
+                        $tagsplanned{$1} = $tagsplanned{$p} + $planned;
                     }else{
-                        $tags{$1} = length($3);
-                        $tagsplanned{$1} = $2;
+                        $tags{$1} = length($4);
+                        $tagsplanned{$1} = $planned;
                     }
                 }
             }
