@@ -24,8 +24,10 @@ my $help = '';
 my $summary = '';
 my $write = '';
 my $backup = '';
+my $itemize = '';
 
 GetOptions ('summary' => \$summary, 
+            'itemize' => \$itemize,
             'help' => \$help, 
             'file=s' => \$file, 
             'day=s' => \$today,
@@ -34,7 +36,16 @@ GetOptions ('summary' => \$summary,
             'backup' => \$backup
 );
 
-if($summary){$today="all";}
+# Itemize includes a summary by default
+if($itemize){$summary="summary"}
+
+# If we summarize then don't also itemize else we print day with summary
+if($summary){
+    $today="all";
+} else {
+    $itemize="itemize";
+}
+
 if($help){
     print "\n";
     print "Usage: ./pomo_point_count.pl -f todo_file (default: today.txt)";
@@ -147,17 +158,21 @@ if($summary){
     &print_day_stats($today);
     print "\n";
 }
-printf "\nPrimary Project Worked:\n";
-foreach my $key (sort {$tags{$b} <=> $tags{$a} or $a cmp $b} keys %tags){
-    printf("\n%30s: %3s/%s (%.02f%s)",$key,$tags{$key},$tpomos,$tags{$key}/$tpomos,'%') unless($key =~ /,/);
-}
-printf "\n\nSecondary Project Worked:\n";
-foreach my $key (sort {$tags{$b} <=> $tags{$a} or $a cmp $b} keys %tags){
-    printf("\n%30s: %3s/%s (%.02f%s)",$key,$tags{$key},$tpomos,$tags{$key}/$tpomos,'%') if($key =~ /,/);
-}
-printf "\n\nPrimary Project Allocation:\n";
-foreach my $key (sort {$tagsplanned{$b} <=> $tagsplanned{$a} or $a cmp $b} keys %tagsplanned){
-    printf("\n%30s: %3s/%s (%.02f%s)",$key,$tagsplanned{$key},$tplan,$tagsplanned{$key}/$tplan,'%') unless($key =~ /,/);
+
+if($itemize)
+{
+    printf "\nPrimary Project Worked:\n";
+    foreach my $key (sort {$tags{$b} <=> $tags{$a} or $a cmp $b} keys %tags){
+        printf("\n%30s: %3s/%s (%.02f%s)",$key,$tags{$key},$tpomos,$tags{$key}/$tpomos,'%') unless($key =~ /,/);
+    }
+    printf "\n\nSecondary Project Worked:\n";
+    foreach my $key (sort {$tags{$b} <=> $tags{$a} or $a cmp $b} keys %tags){
+        printf("\n%30s: %3s/%s (%.02f%s)",$key,$tags{$key},$tpomos,$tags{$key}/$tpomos,'%') if($key =~ /,/);
+    }
+    printf "\n\nPrimary Project Allocation:\n";
+    foreach my $key (sort {$tagsplanned{$b} <=> $tagsplanned{$a} or $a cmp $b} keys %tagsplanned){
+        printf("\n%30s: %3s/%s (%.02f%s)",$key,$tagsplanned{$key},$tplan,$tagsplanned{$key}/$tplan,'%') unless($key =~ /,/);
+    }
 }
 # to sort values use keys to lookup the values and a compare block to compare
 # them

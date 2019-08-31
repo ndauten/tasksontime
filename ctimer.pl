@@ -3,13 +3,11 @@ use strict;
 use warnings;
 use IO::Select;
 use POSIX qw(strftime);
-use Mail::Sendmail;
 use Getopt::Long;
 use DateTime;
 use Scalar::Util qw(looks_like_number);
 use Switch;
 use Time::ParseDate;
-use Mac::Growl;
 
 
 #===============================================================================
@@ -34,15 +32,9 @@ sub mail_notification(){
         Message => "Pomodoro Completed!",
         Subject => "Pomodoro Completed at $now_string"
     );
-    sendmail(%mail) or die $Mail::Sendmail::error;
+    #sendmail(%mail) or die $Mail::Sendmail::error;
     #print "OK. Log says:\n", $Mail::Sendmail::log;
 }
-
-Mac::Growl::RegisterNotifications(
-    'Pomo Timer', # application name
-    [ 'pomocomplete' ],  # notifications this app sends
-    [ 'pomocomplete' ],  # enable these notifications
-);
 
 sub notify_completion()
 {
@@ -58,11 +50,12 @@ sub notify_completion()
     if(1)
     {
         if (`uname` ne "Linux"){
+            system("osascript -e 'display notification \"Pomo Complete!\" with title \"Pomo Complete!\"'")
+        } else {    
             #&mail_notification($now_string);
             system("DISPLAY=:2.0 ./naughty-notify.sh");
             system("DISPLAY=:1.0 ./naughty-notify.sh");
-        } else {    
-            system('osascript ./mac_growl_notify.scpt');
+            
             #PostNotification("MyPerlApp", $notificationName, $notificationTitle,
             #$notificationDescription[, $sticky, $priority, $image_path]);
             #system('say "You are done! Successful completion of Pomodoro!"');
@@ -71,6 +64,24 @@ sub notify_completion()
 }
 
 sub printStats()
+{
+    my $dayofweek = DateTime->now()->day_name();
+    my ($day) = @_;
+    if($day =~ /s/)
+    {
+        system("./pomo_point_count.pl -f ../today.txt -s");
+    }
+    elsif($day =~ /t/)
+    {
+        system("./pomo_point_count.pl -f ../today.txt -day $dayofweek");
+    }
+    elsif($day =~ /i/)
+    {
+        system("./pomo_point_count.pl -f ../today.txt -s -i");
+    }
+}
+
+sub printplan()
 {
     my $dayofweek = DateTime->now()->day_name();
     my ($day) = @_;
@@ -147,7 +158,7 @@ sub do_pomodoro(){
         $|++;
         my $time = time;
         last if ($time >= $end_time);
-        printf("\r\t[ %02d:%02d:%02d ] -- command [p,f,v,r,q,s,t]? %s",
+        printf("\r\t[ %02d:%02d:%02d ] -- command [p,f,v,r,q,s,t,i]? %s",
             ($end_time - $time) / (60*60),
             ($end_time - $time) / (   60) % 60,
             ($end_time - $time)           % 60,
@@ -195,6 +206,10 @@ sub do_pomodoro(){
                 &printStats('t');
                 print "\n";
             }
+            if($input eq 'i'){
+                &printStats('i');
+                print "\n";
+            }
             if($input eq 'q'){
                 print "\nExiting without counting the pomodoro\n\n";
                 exit;
@@ -210,10 +225,10 @@ sub ask_for_action_and_get_choice()
 {
     print "\nAction (h for help): ";
     chomp(my $action = <STDIN>);
-    while($action !~ /^[abcdhlmnrstq]$/)
+    while($action !~ /^[abcdhlmnrstiq]$/)
     {
         print "\nThe option $action does not exist. Please try again" .
-              "[a,b,c,d,n,m,q,r,s,t]: ";
+              "[a,b,c,d,i,l,m,n,q,r,s,t]: ";
         chomp($action = <STDIN>);
     }
     return $action;
@@ -326,6 +341,7 @@ while (1)
                   "\n\t- [b] take a break" . 
                   "\n\t- [c] continue from the completion of the last pomodoro" .
                   "\n\t- [d] delete count pomodoros" .
+                  "\n\t- [i] print stats with project allocation" .
                   "\n\t- [l] list pomodoro count" .
                   "\n\t- [m] capture pomodoros from duration and start new" .
                   "\n\t- [n] start a new pomodoro now".
@@ -333,6 +349,10 @@ while (1)
                   "\n\t- [s] print weekly stats from today.txt" .
                   "\n\t- [t] print today's stats from today.txt" .
                   "\n\t- [q] quit? \n";
+        }
+        case 'i'
+        {
+            &printStats('i');
         }
         # TODO: Add a continuous mode here to allow for free flow 
         # case 'f'
@@ -393,7 +413,7 @@ while (1)
 
     }
    
-    next if ($action =~ /[rladhst]/);
+    next if ($action =~ /[rladhsti]/);
     
     my $result = &do_pomodoro($s, $minutes);
 
