@@ -11,7 +11,6 @@ spec = Gem::Specification.new do |s|
   s.files = `git ls-files`.split("
 ")
   s.require_paths << 'lib'
-  s.has_rdoc = true
   s.extra_rdoc_files = ['README.rdoc','timetracker.rdoc']
   s.rdoc_options << '--title' << 'timetracker' << '--main' << 'README.rdoc' << '-ri'
   s.bindir = 'bin'
