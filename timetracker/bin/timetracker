@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 require 'gli'
 require 'yaml'
+require 'date'
 
 begin # XXX: Remove this begin/rescue before distributing your app
 require 'timetracker'
