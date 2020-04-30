@@ -39,13 +39,14 @@ end
 
 class Brick
     attr_reader :children, :parent, :name
-    def initialize(name, parent, tags)
+    def initialize(name, parent, budget=0, tags)
         @name = name
         @parent = parent
         @tags = Array.new           # This is an array of tags for this brick
         @tags.push(tags)
         @timeWorked = Array.new     # This is an array of TimeEntry objects
         @children = Hash.new       # Names of children -- index is a string
+        @budget = 0
     end
     def addChild(child)
         @children[child.name] = child
@@ -68,6 +69,8 @@ end
 # ----------------------------------------------------------------------------
 #
 class BrickTree
+    @@pomo_duration = 25 # TODO MAKE CONFIGURABLE
+
     def initialize()
         @tree = Hash.new
         @tree["root"] = {
@@ -79,7 +82,7 @@ class BrickTree
         }
     end
 
-    def addBrick(bname, parentName, tags)
+    def addBrick(bname, parentName, budget, tags)
         # Check that the parent node is in the tree
         raise "Parent node: #{parentName} does not exist." unless @tree.has_key?(parentName)
 
@@ -95,6 +98,7 @@ class BrickTree
         @tree[bname] = {
             'brick' => bname, 
             'parent' => parentName, 
+            'budget' => budget, 
             'tags' => tags, 
             'timeWorked' => [], 
             'children' => [] 
@@ -230,6 +234,22 @@ class BrickTree
         getBrick(bname, @root)
     end 
 
+    # ---
+    #
+    # Function: setBrickBudget
+    #
+    # Description: Modify the pomodoro budget for the brick
+    #
+    # Inputs: 
+    #   - brick: 
+    #   - budget: the number of pomodoros
+    # ---
+    def setBrickBudget(brick, budget)
+        # Make sure the brick exists and update budget
+        raise "Brick node: #{brick} does not exist." unless @tree.has_key?(brick)
+        @tree[brick]['budget'] = budget
+    end
+
     # This function is deprecated and might need to be removed. An earlier data
     # structure for the brick was to use a class with pointers, such as in a
     # traditional C type data structure. Now we just use the hash.
@@ -267,6 +287,14 @@ class BrickTree
         sum
     end
     
+    def brickBudget(bname)
+        # Check that the brick exists
+        raise "<bttd> Brick node: #{bname} does not exist." unless @tree.has_key?(bname)
+        b = 0
+        b = @tree[bname]['budget'] if !@tree[bname]['budget'].nil?
+        b 
+    end
+    
     #def brickDayTimeDirect(bname)
         ## Check that the parent node is in the tree
         #raise "<bttd> Brick node: #{bname} does not exist." unless @tree.has_key?(bname)
@@ -301,7 +329,7 @@ class BrickTree
         end
         sum
     end
-    
+
     def brickDayTimeAggregate(brickName)
         raise "Brick node: #{brickName} does not exist can't calculate time." unless @tree.has_key?(brickName)
         brickAggregateTime = 0
@@ -327,6 +355,15 @@ class BrickTree
             brickAggregateTime += brickWeekTimeDirect(brick['brick'])
         end
         brickAggregateTime
+    end
+
+    def brickWeeklyBudgetedAgg(brickName)
+        raise "Brick node: #{brickName} does not exist can't calculate time." unless @tree.has_key?(brickName)
+        budget = 0
+        self.traverse_postorder(brickName) do |brick|
+            budget += brickBudget(brick['brick'])
+        end
+        budget
     end
 
     # This function includes a yield, which is a closure passed from the
@@ -368,8 +405,9 @@ class BrickTree
             brickTimePretty = TimeUtils.timeDiffPretty(brickWeeklyTimeAggregate(name))
             #print "   "*(level), '- ', "#{name} [#{brickTimePretty}]: ", "."*5," #{brickTimePretty}\n"
             frontSpaceStr = "    "*(level) + '-'
+            pomos = (timeInSecs * 1.0 / 60 / @@pomo_duration).round(1)
             perc = ( (timeInSecs / @base) * 100 ).round
-            timeStr = "[%s -- %02i%s]" % [brickTimePretty, perc, '%']
+            timeStr = "[%s -- %02i%s -- %.1f/%i]" % [brickTimePretty, perc, '%', pomos, brickWeeklyBudgetedAgg(name)]
             nameStrWDots = "%s %s" % [name, '.' * (25 - name.length)]
             print "%s %-25s%-20s\n" % [frontSpaceStr, nameStrWDots, timeStr]
             #print "    "*(level), '- ', "#{name} [#{brickTimePretty} -- #{perc}%] \n"
