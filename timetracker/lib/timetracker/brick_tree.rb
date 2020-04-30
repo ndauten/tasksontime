@@ -39,13 +39,14 @@ end
 
 class Brick
     attr_reader :children, :parent, :name
-    def initialize(name, parent, tags)
+    def initialize(name, parent, budget=0, tags)
         @name = name
         @parent = parent
         @tags = Array.new           # This is an array of tags for this brick
         @tags.push(tags)
         @timeWorked = Array.new     # This is an array of TimeEntry objects
         @children = Hash.new       # Names of children -- index is a string
+        @budget = 0
     end
     def addChild(child)
         @children[child.name] = child
@@ -79,7 +80,7 @@ class BrickTree
         }
     end
 
-    def addBrick(bname, parentName, tags)
+    def addBrick(bname, parentName, budget, tags)
         # Check that the parent node is in the tree
         raise "Parent node: #{parentName} does not exist." unless @tree.has_key?(parentName)
 
@@ -95,6 +96,7 @@ class BrickTree
         @tree[bname] = {
             'brick' => bname, 
             'parent' => parentName, 
+            'budget' => budget, 
             'tags' => tags, 
             'timeWorked' => [], 
             'children' => [] 
@@ -229,6 +231,22 @@ class BrickTree
     def getBrickFromName(bname)
         getBrick(bname, @root)
     end 
+
+    # ---
+    #
+    # Function: setBrickBudget
+    #
+    # Description: Modify the pomodoro budget for the brick
+    #
+    # Inputs: 
+    #   - brick: 
+    #   - budget: the number of pomodoros
+    # ---
+    def setBrickBudget(brick, budget)
+        # Make sure the brick exists and update budget
+        raise "Brick node: #{brick} does not exist." unless @tree.has_key?(brick)
+        @tree[brick]['budget'] = budget
+    end
 
     # This function is deprecated and might need to be removed. An earlier data
     # structure for the brick was to use a class with pointers, such as in a

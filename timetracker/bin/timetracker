@@ -185,6 +185,12 @@ command :add do |c|
                          :type => String,
                          :desc => "The parent to add the new brick to."
     
+    c.desc 'Weekly time budget (pomos) for this brick'
+    c.flag [:a,:alloc_pomos], :default_value => nil,
+                         :arg_name => "budget",
+                         :type => Integer,
+                         :desc => "Weekly time budget (pomos) for this brick."
+    
     c.desc 'Comma separated list of tags'
     c.flag [:t,:tags], :default_value => [],
                        :arg_name => "tags",
@@ -200,9 +206,9 @@ command :add do |c|
             help_now!('Must provide a parent to attach the new brick')
         end
 
-        puts "Adding brick: #{options[:b]} to parent: #{options[:p]}, with tags: #{options[:t]}"
+        puts "Adding brick: #{options[:b]} to parent: #{options[:p]}, with tags: #{options[:t]} and #{options[:a]} budgeted pomos"
 
-        $brick_tree.addBrick(options[:b], options[:p], options[:t])
+        $brick_tree.addBrick(options[:b], options[:p], options[:a], options[:t])
 
         if(global_options[:verbose]) then
             print "\nResulting Tree: \n"
@@ -316,6 +322,31 @@ command [:mv,:move] do |c|
                 print "\nResulting Tree: \n"
                 puts $brick_tree
             end
+        end
+    end
+
+    c.default_command :subtree
+end
+
+desc 'Edit a brick'
+arg_name 'brick_id'
+command [:ed,:edit] do |c|
+    c.desc 'Name of the brick to modify'
+    c.flag [:b,:brick]
+
+    c.desc 'Weekly time budget (pomos) for this brick'
+    c.flag [:a,:alloc_pomos], :default_value => nil,
+                         :arg_name => "budget",
+                         :type => Integer,
+                         :desc => "Weekly time budget (pomos) for this brick."
+
+    c.action do |global_options,options,args|
+        # check that the brick option was given
+        help_now!('Brick and parent required') if(options[:b].nil?)
+        $brick_tree.setBrickBudget(options[:b],options[:a])
+        if(global_options[:verbose])
+            print "\nResulting Tree: \n"
+            $brick_tree.prettyPrintFullTree()
         end
     end
 
