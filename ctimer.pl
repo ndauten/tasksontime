@@ -100,13 +100,16 @@ sub delete_pomodoros()
 {
     my ($running_fn, $pomos) = @_;
     my $count = 0;
+    my $now = strftime "%a %b %e %H:%M:%S %Y", localtime;
     my $trash = 0;
     if (-e $running_fn) {
         open(FH, $running_fn); ($count,$trash) = split('\n',<FH>); close(FH); 
     }
     open(FH, ">", "$running_fn")
         or die "cannot open > $running_fn: $!";
-    $count -= $pomos; print FH $count; close(FH);
+    $count -= $pomos; print FH $count; 
+    print FH "\n--deleted "; print FH $pomos; print FH " pomos @ "; print FH $now;
+    close(FH);
     print "Deleting $pomos from count\n";
     print "\n\n**** You have completed $count pomodoros ****\n\n";
 }
@@ -117,12 +120,16 @@ sub count_pomodoro()
     my ($running_fn, $pomos) = @_;
     my $count = 0;
     my $trash = 0;
+    my $now = strftime "%a %b %e %H:%M:%S %Y", localtime;
     if (-e $running_fn) {
         open(FH, $running_fn); ($count,$trash) = split('\n',<FH>); close(FH); 
     }
     open(FH, ">", "$running_fn")
         or die "cannot open > $running_fn: $!";
-    $count += $pomos; print FH $count; close(FH);
+    $count += $pomos; 
+    print FH $count; 
+    print FH "\n Added "; print FH $count; print FH " pomos @ "; print FH $now;
+    close(FH);
     print "\n\n**** You have completed $count pomodoros ****\n\n";
 }
 
