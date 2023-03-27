@@ -33,7 +33,28 @@ $brickTreeFileName = "~/.bricktree.yml"
 
 # specify special date format
 accept(Date) do |string|
-      Date.parse(string)
+    # Allow my custom format otherwise use Date parse
+    begin
+        raise StandardError.new unless string.match(/\d{1,2}\.\d{1,2}\.\d{1,2}\z/)
+        puts Date.strptime(string,'%m.%d.%y').inspect
+    rescue 
+        Date.parse(string)
+    end
+end
+
+# specify special date format and return the range
+accept(Date..Date) do |date_str|
+    # Allow my custom format otherwise use Date parse
+    begin
+        raise StandardError.new unless date_str.match(/\d{1,2}\.\d{1,2}\.\d{1,2}-\d{1,2}\.\d{1,2}\.\d{1,2}\z/)
+        first = Date.strptime(date_str.split('-')[0], '%m.%d.%y')
+        last = Date.strptime(date_str.split('-')[1], '%m.%d.%y')
+        first..last
+    rescue
+        first = Date.parse(date_str.split('-')[0])
+        last = Date.parse(date_str.split('-')[1])
+        first..last
+    end
 end
 
 desc 'Specify the file where the task tree lives'
@@ -58,14 +79,37 @@ command [:show,:sh] do |c|
     #c.desc 'Describe a switch to list'
     #c.switch :s
 
-    c.desc 'Specify a date to show information: format mm.dd.yy'
-    c.flag [:d,:day]
+    # Calculate the start and end times of the time range
+    start_time = Date.today - Date.today.wday
+
+    # This sets the default print date to today
+    c.flag [:d,:date], 
+        :default_value => Date.today,
+        :arg_name => "day",
+        :type => Date,
+        :desc => "Date in format '%m.%d.%y' or standard"
     
-    c.desc 'Specify a date range to show information; format mm.dd.yy-mm.dd.yy'
-    c.flag [:r,:range]
+    # If a range is desired select this, do the past week
+    c.flag [:r,:range],
+        # default range is since sunday, today is +1 so midnight next day and gets all today
+        :default_value => (Date.today - Date.today.wday)..Date.today+1,
+        :arg_name => "range",
+        :type => Date..Date,
+        :desc => "Date range to print in format '%m.%d.%y..%m.%d.%y' or standard with a '-' separating"
     
-    c.desc 'Show briks starting at brick root (default: root).'
-    c.flag [:b,:brickroot]
+    c.flag [:b,:brickroot],
+        :default_value => "root",
+        :arg_name => "brickroot",
+        :desc => 'Show bricks starting at brick root'
+    
+    c.desc 'Show time records'
+    c.switch 'tasks'
+    
+    c.desc 'Print weekly with budget'
+    c.switch 'week'
+    
+    c.desc 'Print weekly with budget'
+    c.switch 'daily'
 
     #c.action do |global_options,options,args|
 
@@ -77,99 +121,41 @@ command [:show,:sh] do |c|
         #puts "list command ran"
     #end
     
-    c.desc 'Show all bricks'
-    c.command [:bricks] do |c2|
+    c.desc 'Show show sum time tracked for each brick'
+    c.command [:summary,:su] do |c2|
         c2.action do |global_options,options,args|
-            puts "Showing full tree..."
+            startdate = options[:range].first
+            enddate = options[:range].last
+            puts "Showing cumulative time worked from #{startdate} to #{enddate}, #{enddate-startdate} days"
+            # TODO: add option for specifying tasks of day
+            starttime = startdate.to_time
+            endtime = enddate.to_time
+            if(options[:week])
+                $brick_tree.prettyPrintFullTree()
+            elsif(options[:daily])
+                $brick_tree.printTasksByDay(options[:brickroot],0,starttime,endtime,options[:tasks])
+            else
+                $brick_tree.printSubtreeTotalTime(options[:brickroot],0,starttime,endtime,options[:tasks])
+            end
+        end
+    end
+    
+    c.desc 'Show brick tree'
+    c.command [:tree] do |c2|
+        c2.action do |global_options,options,args|
+            puts "Showing the tree"
             print $brick_tree
         end
     end
     
-    c.desc 'Show tree with names'
-    c.command [:tree] do |c2|
-        c2.action do |global_options,options,args|
-            puts "Showing full tree..."
-            $brick_tree.prettyPrintFullTree()
-        end
-    end
-        
-    c.desc 'Show show time worked for each brick'
+    c.desc 'Show show time worked for each brick today'
     c.command [:to,:today] do |c2|
         c2.action do |global_options,options,args|
             $brick_tree.printSubtreeTodayTime()
         end
     end
     
-    c.desc 'Show show time worked for each brick'
-    c.command [:total] do |c2|
-        c2.action do |global_options,options,args|
-            timeBegin = 0
-            timeEnd = 0
-            unless(options[:r].nil?)
-                timeBegin, timeEnd = 
-                    TimeUtils.getBeginEndTimes(
-                        options[:r].split('-')[0],
-                        options[:r].split('-')[1]
-                    )
-            else
-                unless(options[:d].nil?)
-                    timeBegin, timeEnd = TimeUtils.getBeginEndTimes(options[:d],options[:d])
-                end
-            end
-            $brick_tree.printSubtreeTotalTime("root",0,timeBegin,timeEnd)
-        end
-    end
-    
-    c.desc 'Show brick time records for day <def:today>'
-    c.command [:tr,:records] do |c2|
-
-        c2.desc 'Show the time records for the day'
-        c2.command [:day] do |c3|
-            c3.action do |global_options,options,args|
-                timeBegin = TimeUtils.getLastSundayTime
-                timeEnd = Time.now 
-                unless(options[:r].nil?)
-                    timeBegin, timeEnd = TimeUtils.getBeginEndTimes(options[:r].split('-')[0],options[:r].split('-')[1])
-                else
-                    unless(options[:d].nil?)
-                        timeBegin, timeEnd = TimeUtils.getBeginEndTimes(options[:d],options[:d])
-                    end
-                end
-                #puts "Not implemented yet! ", timeBegin, timeEnd
-                $brick_tree.printByTimeRecords(timeBegin,timeEnd)
-            end
-        end
-
-        c2.action do |global_options,options,args|
-            # Default to the range of the current week 
-            daySecs = (60*60*24)
-            dateBegin = TimeUtils.getLastSundayTime
-            dateEnd = Time.now 
-            unless(options[:r].nil?)
-                puts "Time Record for range #{options[:r]}\n"
-                # format : mm.dd.yy-mm.dd.yy
-                dateStr = options[:r].split('-')
-                dateB = dateStr[0].split('.')
-                dateE = dateStr[1].split('.')
-                dateBegin = Time.new("20#{dateB[2]}", dateB[0], dateB[1])
-                # Note that we add one day here because the time being returned
-                # is the first hour of the day, and as such we need to include
-                # time up to midnight of the next day.
-                dateEnd = Time.new("20#{dateE[2]}", dateE[0], dateE[1]) + daySecs
-            else
-                unless(options[:d].nil?)
-                    puts "Time Record for #{options[:d]}\n"
-                    # Format is mm:dd:yy
-                    dateStr = options[:d].split('.')
-                    dateBegin = Time.new("20#{dateStr[2]}", dateStr[0], dateStr[1])
-                    dateEnd = dateBegin + daySecs 
-                end
-            end
-            $brick_tree.printTimeRecords(dateBegin, dateEnd)
-        end
-    end
-
-    c.default_command :tree
+    c.default_command :su
 end
 
 desc 'Add a new brick'

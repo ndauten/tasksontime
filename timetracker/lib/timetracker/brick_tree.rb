@@ -396,14 +396,13 @@ class BrickTree
         raise 'Parent node does not exist.' unless @tree.has_key?(parent)
         @tree[parent]['children'].include?(child)
     end
-    
+
     # attempts to pretty print the tree.
     def prettyPrint(name, level)
         timeInSecs = brickWeeklyTimeAggregate(name)
         @base = timeInSecs if(level == 0)
         unless(timeInSecs == 0)
             brickTimePretty = TimeUtils.timeDiffPretty(brickWeeklyTimeAggregate(name))
-            #print "   "*(level), '- ', "#{name} [#{brickTimePretty}]: ", "."*5," #{brickTimePretty}\n"
             frontSpaceStr = "    "*(level) + '-'
             pomos = (timeInSecs * 1.0 / 60 / @@pomo_duration).round(1)
             perc = ( (timeInSecs / @base) * 100 ).round
@@ -426,7 +425,7 @@ class BrickTree
         traverse_preorder(brickName, indent) {|brick, depth|
             if(brickDayTimeAggregate(brick['brick']) > 0)
                 timeDiffPretty = TimeUtils.timeDiffPretty(brickDayTimeAggregate(brick['brick']))
-                print "    " * depth, "#{brick['brick']}: [#{timeDiffPretty}]\n" 
+                print "    " * depth, "#{brick['brick']}: [#{timeDiffPretty}] [#{(brickDayTimeAggregate(brick['brick'])/60/@@pomo_duration).round(1)}]\n" 
             end
         }
     end
@@ -465,16 +464,36 @@ class BrickTree
             t1 = t1+24*60*60
         end
     end
+        
+    #self.traverse_postorder(brickName) do |brick|
+            ##brickAggregateTime += brickTotalTimeDirect(brick['brick'], timeBegin, timeEnd)
+        #end
 
     def printTimeRecords(dateBegin, dateEnd)
+        tasks = []
         self.traverse_preorder() {|brick, depth|
-            print "    " * depth, "#{brick['brick']}:\n"
+            #print "    " * depth, "#{brick['brick']}:\n"
             brick['timeWorked'].each{ |tr|
                 if(tr.inRange(dateBegin,dateEnd)) 
-                    print "    " * (depth+1), tr, "\n"
+                    #print "    " * (depth+1), tr, "\n"
+                    #print "    " * (depth+1), tr, "\n"
+                    print "\t", tr, "--", brick['brick'],"\n"
                 end
+                tasks.push(tr)
             }
         }
+        tasks
+    end
+
+    def getTimeRecords(dateBegin, dateEnd)
+        tasks = []
+        self.traverse_preorder() {|brick, depth|
+            #print "    " * depth, "#{brick['brick']}:\n"
+            brick['timeWorked'].each{ |tr|
+                tasks.push(tr) if(tr.inRange(dateBegin,dateEnd))
+            }
+        }
+        tasks
     end
     
     # ---------
@@ -485,14 +504,33 @@ class BrickTree
     #   total brick work times. While going through print out the tree, given
     #   the preorder traversal. 
     # ---------
-    def printSubtreeTotalTime(brickName="root", indent=0, timeBegin=0, timeEnd=0)
+    def printSubtreeTotalTime(brickName="root", indent=0, timeBegin=0, timeEnd=0, tasks=false)
         traverse_preorder(brickName, indent) {|brick, depth|
             timeInSecs = brickTotalTimeAggregate(brick['brick'], timeBegin, timeEnd)
             unless(timeInSecs == 0)
                 timeDiffPretty = TimeUtils.timeDiffPretty(timeInSecs)
-                print "    " * depth, "#{brick['brick']}: [#{timeDiffPretty}]\n"
+                print "    " * depth, "#{brick['brick']}: [#{timeDiffPretty}] [#{timeInSecs/60/@@pomo_duration}]\n" 
+                if(tasks)
+                  brick['timeWorked'].each{ |tr|
+                    if(tr.inRange(timeBegin,timeEnd)) 
+                      print "    " * (depth+1), tr, "\n"
+                    end
+                  }
+                end
             end
         }
+    end
+
+    #def printTasks(bri
+
+    def printTasksByDay(brickName="root", indent=0, timeBegin=0, timeEnd=0, tasks=false)
+      daystasks = []
+      # for each day in range
+      (DateTime.parse(timeBegin.to_s)..DateTime.parse(timeEnd.to_s)).each{|date|
+        puts date.strftime('%m.%d.%y -- %a')
+        daystasks = getTimeRecords(date.to_time, (date+1).to_time)
+        daystasks.sort_by(&:startTime).each{|task| print "\t", task, "\n"}
+      }
     end
 
     def printSubtree(brickName="root", indent=0)
