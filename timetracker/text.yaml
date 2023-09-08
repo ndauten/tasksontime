@@ -1,0 +1,43 @@
+--- !ruby/object:BrickTree
+tree:
+  root:
+    brick: root
+    parent: ''
+    tags:
+    - all
+    timeWorked: []
+    children:
+    - Research
+    - FunStuff
+  Research:
+    brick: Research
+    parent: root
+    budget: 
+    tags: []
+    timeWorked: []
+    children:
+    - Locality
+  Locality:
+    brick: Locality
+    parent: Research
+    budget: 
+    tags: []
+    timeWorked: []
+    children: []
+  FunStuff:
+    brick: FunStuff
+    parent: root
+    budget: 
+    tags: []
+    timeWorked:
+    - !ruby/object:BrickTimeRecord
+      startTime: 2023-09-08 16:47:32.326453944 -05:00
+      endTime: 2023-09-08 16:47:36.904601855 -05:00
+      tags: 
+      name: 
+    - !ruby/object:BrickTimeRecord
+      startTime: 2023-09-08 16:56:19.913883299 -05:00
+      endTime: 2023-09-08 17:01:03.633747767 -05:00
+      tags: 
+      name: 
+    children: []

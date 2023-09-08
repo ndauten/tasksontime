@@ -29,7 +29,7 @@ version Timetracker::VERSION
 
 
 # Global Vars
-$brickTreeFileName = "~/.bricktree.yml"
+$brickTreeFileName = "/home/claire/installs/tasksontime/timetracker/text.yml"
 
 # specify special date format
 accept(Date) do |string|
@@ -59,7 +59,7 @@ end
 
 desc 'Specify the file where the task tree lives'
 arg_name 'path'
-default_value File.join(ENV['HOME'],'.bricktree.yml')
+default_value '/home/claire/installs/tasksontime/timetracker/text.yaml'
 flag [:t,:tasktree]
 
 desc 'Be verbose'
@@ -460,11 +460,11 @@ command [:re,:record] do |c|
 
             print "Would you like to record this time to the brick? [Y/n] "
             unless (gets.chomp() =~ /[nN]/)
-                unless File.exists?($brickTreeFileName)
+                unless File.exist?($brickTreeFileName)
                     puts "Data file does not exist. Creating new one."
                     $brick_tree = BrickTree.new
                 else
-                    $brick_tree = YAML.load_file($brickTreeFileName)
+                    $brick_tree = YAML.load_file($brickTreeFileName, permitted_classes: [BrickTree, BrickTimeRecord, Time])
                 end
                 $brick_tree.recordTime(options[:t],
                                        options[:b], 
@@ -549,11 +549,11 @@ pre do |global,command,options,args|
 
     #$task_tree_serializer = BrickTree::TaskListYamlSerializer.new(global[:t])
     #$task_list = $task_list_serializer.read
-    unless File.exists?(global[:t])
+    unless File.exist?(global[:t])
         puts "Data file does not exist. Creating new one."
         $brick_tree = BrickTree.new
     else
-        $brick_tree = YAML.load_file(global[:t])
+        $brick_tree = YAML.load_file(global[:t], permitted_classes: [BrickTree, BrickTimeRecord, Time])
         $brickTreeFileName = global[:t]
     end
     true
