@@ -1,4 +1,2 @@
 source 'https://rubygems.org'
 gemspec
-#gem 'gli', '~> 2.19'
-

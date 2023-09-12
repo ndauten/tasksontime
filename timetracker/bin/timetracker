@@ -29,7 +29,7 @@ version Timetracker::VERSION
 
 
 # Global Vars
-$brickTreeFileName = "/home/claire/installs/tasksontime/timetracker/text.yml"
+$brickTreeFileName = "~/.bricktree.yml"
 
 # specify special date format
 accept(Date) do |string|
@@ -59,7 +59,7 @@ end
 
 desc 'Specify the file where the task tree lives'
 arg_name 'path'
-default_value '/home/claire/installs/tasksontime/timetracker/text.yaml'
+default_value File.join(ENV['HOME'],'.bricktree.yml')
 flag [:t,:tasktree]
 
 desc 'Be verbose'
