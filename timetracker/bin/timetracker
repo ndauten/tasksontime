@@ -126,7 +126,7 @@ command [:show,:sh] do |c|
                 enddate = options[:date]+1
             end
 
-            puts "Showing cumulative time worked from #{startdate} to #{enddate}, #{enddate-startdate} days"
+            puts "Showing cumulative time worked for subtree '#{options[:brickroot]}' from #{startdate} to #{enddate}, #{enddate-startdate} days "
 
             # Setup the time objects required for precise input into printer
             starttime = startdate.to_time

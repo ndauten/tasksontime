@@ -491,10 +491,11 @@ class BrickTree
         tasks
     end
 
-    def getTimeRecords(dateBegin, dateEnd)
+    def getTimeRecords(treeroot="root",dateBegin, dateEnd)
         tasks = []
         pomos = 0
-        self.traverse_preorder() {|brick, depth|
+        # we want to only calculate from the provided root
+        self.traverse_preorder(treeroot) {|brick, depth|
             #print "    " * depth, "#{brick['brick']}:\n"
             brick['timeWorked'].each{ |tr|
               if(tr.inRange(dateBegin,dateEnd))
@@ -531,9 +532,7 @@ class BrickTree
         }
     end
 
-    #def printTasks(bri
-
-    def printTasksByDay(brickName="root", indent=0, timeBegin=0, timeEnd=0, tasks=false)
+    def printTasksByDay(treeroot="root", indent=0, timeBegin=0, timeEnd=0, tasks=false)
       daystasks = []
       daypomos = 0
       pomos = 0
@@ -541,7 +540,7 @@ class BrickTree
       de = DateTime.parse(timeEnd.to_s)
       # for each day in range
       (db..de).each{|date|
-        daystasks,daypomos = getTimeRecords(date.to_time, (date+1).to_time)
+        daystasks,daypomos = getTimeRecords(treeroot,date.to_time, (date+1).to_time)
         print date.strftime('%m.%d.%y -- %a'), " -- [", daypomos, "]\n"
         daystasks.sort_by(&:startTime).each{|task| print "\t", task, "\n"}
         pomos += daypomos

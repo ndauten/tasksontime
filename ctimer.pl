@@ -103,7 +103,10 @@ sub delete_pomodoros()
     my $now = strftime "%a %b %e %H:%M:%S %Y", localtime;
     my $trash = 0;
     if (-e $running_fn) {
-        open(FH, $running_fn); ($count,$trash) = split('\n',<FH>); close(FH); 
+        open(my $FH, '<', $running_fn); 
+        ($count,$trash) = split('\n',<$FH>);
+        #while(<$FH>){ ($count,$trash) = split('\n',<FH>); }
+        #close(FH);
     }
     open(FH, ">", "$running_fn")
         or die "cannot open > $running_fn: $!";
