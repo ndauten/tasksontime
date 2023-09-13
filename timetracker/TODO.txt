@@ -2,7 +2,8 @@
 #===============================================================================
 
 <=== Bugs ===>
-    [ ] Fix Traversal Preorder;;
+    - [ ] Fix Traversal Preorder;;
+    - [ ] Rename moves but fails to apply new name;;
 
 <=== Functionality ===>
     [ ] Tree modification;;
