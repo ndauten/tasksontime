@@ -36,7 +36,8 @@ accept(Date) do |string|
     # Allow my custom format otherwise use Date parse
     begin
         raise StandardError.new unless string.match(/\d{1,2}\.\d{1,2}\.\d{1,2}\z/)
-        puts Date.strptime(string,'%m.%d.%y').inspect
+        #puts Date.strptime(string,'%m.%d.%y').inspect # for debug
+        Date.strptime(string,'%m.%d.%y')
     rescue 
         Date.parse(string)
     end
@@ -82,10 +83,10 @@ command [:show,:sh] do |c|
     # Calculate the start and end times of the time range
     start_time = Date.today - Date.today.wday
 
-    # This sets the default print date to today
+    # This sets the print date
     c.flag [:d,:date], 
         :default_value => Date.today,
-        :arg_name => "day",
+        :arg_name => "date",
         :type => Date,
         :desc => "Date in format '%m.%d.%y' or standard"
     
@@ -114,12 +115,23 @@ command [:show,:sh] do |c|
     c.desc 'Show accumulative sum time tracked for each brick'
     c.command [:summary,:su] do |c2|
         c2.action do |global_options,options,args|
+
+            # Figure out what dates to print for
             startdate = options[:range].first
             enddate = options[:range].last
+            
+            # If given a date then only that day
+            if(options[:date]!=Date.today)
+                startdate = options[:date]
+                enddate = options[:date]+1
+            end
+
             puts "Showing cumulative time worked from #{startdate} to #{enddate}, #{enddate-startdate} days"
-            # TODO: add option for specifying tasks of day
+
+            # Setup the time objects required for precise input into printer
             starttime = startdate.to_time
             endtime = enddate.to_time
+
             if(options[:week])
                 $brick_tree.prettyPrintFullTree()
             elsif(options[:daily])
