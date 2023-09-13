@@ -68,8 +68,8 @@ switch 'verbose'
 
 desc 'Show task tree'
 long_desc <<EOS
-List the tasks in your task tree, possibly including time worked.  By default,
-this will list all tree nodes and not other information.
+List the tasks in your task tree, possibly including time worked. By default,
+this will show a summary of time worked per brick since the last Sunday.
 EOS
 
 #arg_name 'Describe arguments to list here'
@@ -108,20 +108,10 @@ command [:show,:sh] do |c|
     c.desc 'Print weekly with budget'
     c.switch 'week'
     
-    c.desc 'Print weekly with budget'
+    c.desc 'Print per day time records'
     c.switch 'daily'
 
-    #c.action do |global_options,options,args|
-
-        # Your command logic here
-
-        # If you have any errors, just raise them
-        # raise "that command made no sense"
-
-        #puts "list command ran"
-    #end
-    
-    c.desc 'Show show sum time tracked for each brick'
+    c.desc 'Show accumulative sum time tracked for each brick'
     c.command [:summary,:su] do |c2|
         c2.action do |global_options,options,args|
             startdate = options[:range].first
@@ -140,18 +130,18 @@ command [:show,:sh] do |c|
         end
     end
     
-    c.desc 'Show brick tree'
-    c.command [:tree] do |c2|
-        c2.action do |global_options,options,args|
-            puts "Showing the tree"
-            print $brick_tree
-        end
-    end
-    
     c.desc 'Show show time worked for each brick today'
     c.command [:to,:today] do |c2|
         c2.action do |global_options,options,args|
             $brick_tree.printSubtreeTodayTime()
+        end
+    end
+    
+    c.desc 'Show full brick tree'
+    c.command [:tree] do |c2|
+        c2.action do |global_options,options,args|
+            puts "Showing the tree"
+            print $brick_tree
         end
     end
     
