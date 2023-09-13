@@ -112,6 +112,9 @@ command [:show,:sh] do |c|
     c.desc 'Print per day time records'
     c.switch 'daily'
 
+    c.desc 'Print for today only'
+    c.switch 'today'
+
     c.desc 'Show accumulative sum time tracked for each brick'
     c.command [:summary,:su] do |c2|
         c2.action do |global_options,options,args|
@@ -121,7 +124,7 @@ command [:show,:sh] do |c|
             enddate = options[:range].last
             
             # If given a date then only that day
-            if(options[:date]!=Date.today)
+            if(options[:date]!=Date.today || options[:today])
                 startdate = options[:date]
                 enddate = options[:date]+1
             end
@@ -150,7 +153,7 @@ command [:show,:sh] do |c|
     end
     
     c.desc 'Show full brick tree'
-    c.command [:tree] do |c2|
+    c.command [:bricktree] do |c2|
         c2.action do |global_options,options,args|
             puts "Showing the tree"
             print $brick_tree
