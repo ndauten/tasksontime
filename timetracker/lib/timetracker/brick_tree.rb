@@ -19,6 +19,10 @@ class BrickTimeRecord
     def duration  #Note this is in seconds
         @endTime - @startTime
     end
+    
+    def pomos #Note this is in seconds
+        (@endTime - @startTime) / 60 / 25
+    end
 
     def onDate(date)
         date.day == @startTime.day &&
@@ -398,11 +402,13 @@ class BrickTree
     end
 
     # attempts to pretty print the tree.
-    def prettyPrint(name, level)
+    def prettyPrint(name, level, timeBegin=0, timeEnd=0)
         timeInSecs = brickWeeklyTimeAggregate(name)
+        #timeInSecs = brickTotalTimeAggregate(name, timeBegin, timeEnd)
+        #traverse_preorder(brickName, indent) {|brick, depth|
         @base = timeInSecs if(level == 0)
         unless(timeInSecs == 0)
-            brickTimePretty = TimeUtils.timeDiffPretty(brickWeeklyTimeAggregate(name))
+            brickTimePretty = TimeUtils.timeDiffPretty(timeInSecs)
             frontSpaceStr = "    "*(level) + '-'
             pomos = (timeInSecs * 1.0 / 60 / @@pomo_duration).round(1)
             perc = ( (timeInSecs / @base) * 100 ).round
@@ -487,13 +493,17 @@ class BrickTree
 
     def getTimeRecords(dateBegin, dateEnd)
         tasks = []
+        pomos = 0
         self.traverse_preorder() {|brick, depth|
             #print "    " * depth, "#{brick['brick']}:\n"
             brick['timeWorked'].each{ |tr|
-                tasks.push(tr) if(tr.inRange(dateBegin,dateEnd))
+              if(tr.inRange(dateBegin,dateEnd))
+                tasks.push(tr)
+                pomos += tr.pomos
+              end
             }
         }
-        tasks
+        [tasks,pomos.round(1)]
     end
     
     # ---------
@@ -509,7 +519,7 @@ class BrickTree
             timeInSecs = brickTotalTimeAggregate(brick['brick'], timeBegin, timeEnd)
             unless(timeInSecs == 0)
                 timeDiffPretty = TimeUtils.timeDiffPretty(timeInSecs)
-                print "    " * depth, "#{brick['brick']}: [#{timeDiffPretty}] [#{timeInSecs/60/@@pomo_duration}]\n" 
+                print "    " * depth, "#{brick['brick']}: [#{timeDiffPretty}] [#{(timeInSecs/60/@@pomo_duration).round(1)}]\n" 
                 if(tasks)
                   brick['timeWorked'].each{ |tr|
                     if(tr.inRange(timeBegin,timeEnd)) 
@@ -525,12 +535,18 @@ class BrickTree
 
     def printTasksByDay(brickName="root", indent=0, timeBegin=0, timeEnd=0, tasks=false)
       daystasks = []
+      daypomos = 0
+      pomos = 0
+      db = DateTime.parse(timeBegin.to_s)
+      de = DateTime.parse(timeEnd.to_s)
       # for each day in range
-      (DateTime.parse(timeBegin.to_s)..DateTime.parse(timeEnd.to_s)).each{|date|
-        puts date.strftime('%m.%d.%y -- %a')
-        daystasks = getTimeRecords(date.to_time, (date+1).to_time)
+      (db..de).each{|date|
+        daystasks,daypomos = getTimeRecords(date.to_time, (date+1).to_time)
+        print date.strftime('%m.%d.%y -- %a'), " -- [", daypomos, "]\n"
         daystasks.sort_by(&:startTime).each{|task| print "\t", task, "\n"}
+        pomos += daypomos
       }
+      print "\nTotal days: #{de-db} and total pomos: #{pomos}\n"
     end
 
     def printSubtree(brickName="root", indent=0)
