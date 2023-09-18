@@ -24,17 +24,20 @@ class BrickTimeRecord
         (@endTime - @startTime) / 60 / 25
     end
 
-    def onDate(date)
+    def onDate?(date)
         date.day == @startTime.day &&
         date.month == @startTime.month &&
         date.year == @startTime.year
     end
     
-    # Check to see if the time is within a particular date range. The dates
-    # could be Date objects or Time objects.
+    # Check to see if the time is in range but ignore timezone
     def inRange(beginTime, endTime)
-        #@startTime.to_date.between?(beginDate, endDate)
-        beginTime < @startTime && @startTime < endTime
+        beginTime.strftime("%Y-%m-%d %H:%M:%S") <= @startTime.strftime("%Y-%m-%d %H:%M:%S") && @startTime.strftime("%Y-%m-%d %H:%M:%S") <= endTime.strftime("%Y-%m-%d %H:%M:%S")
+    end
+
+    # Sorting based on start time including date and time but not time zone
+    def <=>(other)
+        @startTime.strftime("%Y-%m-%d %H:%M:%S").to_s <=> other.startTime.strftime("%Y-%m-%d %H:%M:%S").to_s
     end
     
     def inDateRange(beginDate, endDate)
@@ -505,7 +508,7 @@ class BrickTree
         self.traverse_preorder(treeroot) {|brick, depth|
             #print "    " * depth, "#{brick['brick']}:\n"
             brick['timeWorked'].each{ |tr|
-              if(tr.inDateRange(date,date))
+              if(tr.onDate?(date))
                 tasks.push(tr)
                 pomos += tr.pomos
               end
@@ -547,7 +550,7 @@ class BrickTree
       (dateBegin..dateEnd).each{|date|
         daystasks,daypomos = getTimeRecordsByDay(treeroot,date)
         print date.strftime('%m.%d.%y -- %a'), " -- [", daypomos, "]\n"
-        daystasks.sort_by(&:startTime).each{|task| print "\t", task, "\n"}
+        daystasks.sort.each{|task| print "\t", task, "\n"}
         pomos += daypomos
       }
       print "\nTotal days: #{(dateEnd-dateBegin).to_i} and total pomos: #{pomos}\n"

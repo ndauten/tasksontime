@@ -11,6 +11,8 @@
       function. Fix later. the bug was with date times printing on different
       days while in GMT+2. So there needs to be some time localization
       solution;;
+        - print based on local time zone? the most important is to show time of
+          day when tracked. the timezone is irrelevant.
     - [ ] remove deprecated functions in transition to print weekly;;
     - [ ] Fix datetime issues for print time records---I fixed things for print
       by day but didn't revise old uses;;
