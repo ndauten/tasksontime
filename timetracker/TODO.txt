@@ -6,7 +6,11 @@
     - [ ] Rename moves but fails to apply new name;;
     - [x] fix bug in date printouts for printbyday;;
     - [ ] revise printing and time comparisons for all except printbyday: bug
-      on 0:00 possibly;;
+      on 0:00 possibly--I fixed the bug in printbyday by switching to date
+      comoparisons but there might be bugs in the printTotalSubTreeTime
+      function. Fix later. the bug was with date times printing on different
+      days while in GMT+2. So there needs to be some time localization
+      solution;;
     - [ ] remove deprecated functions in transition to print weekly;;
     - [ ] Fix datetime issues for print time records---I fixed things for print
       by day but didn't revise old uses;;

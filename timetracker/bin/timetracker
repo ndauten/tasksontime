@@ -135,7 +135,7 @@ command [:show,:sh] do |c|
             elsif(options[:daily])
                 $brick_tree.printTasksByDay(options[:brickroot],0,startdate,enddate,options[:tasks])
             else
-                $brick_tree.printSubtreeTotalTime(options[:brickroot],0,starttime,endtime,options[:tasks])
+                $brick_tree.printSubtreeTotalTime(options[:brickroot],0,startdate.to_time,enddate.to_time,options[:tasks])
             end
         end
     end
