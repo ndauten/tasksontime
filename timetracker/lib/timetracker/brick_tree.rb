@@ -30,8 +30,15 @@ class BrickTimeRecord
         date.year == @startTime.year
     end
     
-    def inRange(beginDate, endDate)
-        beginDate < @startTime && @startTime < endDate
+    # Check to see if the time is within a particular date range. The dates
+    # could be Date objects or Time objects.
+    def inRange(beginTime, endTime)
+        #@startTime.to_date.between?(beginDate, endDate)
+        beginTime < @startTime && @startTime < endTime
+    end
+    
+    def inDateRange(beginDate, endDate)
+        @startTime.to_date.between?(beginDate, endDate)
     end
 
     def to_s
@@ -491,14 +498,14 @@ class BrickTree
         tasks
     end
 
-    def getTimeRecords(treeroot="root",dateBegin, dateEnd)
+    def getTimeRecordsByDay(treeroot="root",date)
         tasks = []
         pomos = 0
         # we want to only calculate from the provided root
         self.traverse_preorder(treeroot) {|brick, depth|
             #print "    " * depth, "#{brick['brick']}:\n"
             brick['timeWorked'].each{ |tr|
-              if(tr.inRange(dateBegin,dateEnd))
+              if(tr.inDateRange(date,date))
                 tasks.push(tr)
                 pomos += tr.pomos
               end
@@ -532,20 +539,18 @@ class BrickTree
         }
     end
 
-    def printTasksByDay(treeroot="root", indent=0, timeBegin=0, timeEnd=0, tasks=false)
+    def printTasksByDay(treeroot="root", indent=0, dateBegin=0, dateEnd=0, tasks=false)
       daystasks = []
       daypomos = 0
       pomos = 0
-      db = DateTime.parse(timeBegin.to_s)
-      de = DateTime.parse(timeEnd.to_s)
       # for each day in range
-      (db..de).each{|date|
-        daystasks,daypomos = getTimeRecords(treeroot,date.to_time, (date+1).to_time)
+      (dateBegin..dateEnd).each{|date|
+        daystasks,daypomos = getTimeRecordsByDay(treeroot,date)
         print date.strftime('%m.%d.%y -- %a'), " -- [", daypomos, "]\n"
         daystasks.sort_by(&:startTime).each{|task| print "\t", task, "\n"}
         pomos += daypomos
       }
-      print "\nTotal days: #{de-db} and total pomos: #{pomos}\n"
+      print "\nTotal days: #{(dateEnd-dateBegin).to_i} and total pomos: #{pomos}\n"
     end
 
     def printSubtree(brickName="root", indent=0)

@@ -129,16 +129,11 @@ command [:show,:sh] do |c|
                 enddate = options[:date]+1
             end
 
-            puts "Showing cumulative time worked for subtree '#{options[:brickroot]}' from #{startdate} to #{enddate}, #{enddate-startdate} days "
-
-            # Setup the time objects required for precise input into printer
-            starttime = startdate.to_time
-            endtime = enddate.to_time
-
+            puts "Showing cumulative time worked for subtree '#{options[:brickroot]}' from #{startdate} to #{enddate}, #{(enddate-startdate).to_i} days "
             if(options[:week])
                 $brick_tree.prettyPrintFullTree()
             elsif(options[:daily])
-                $brick_tree.printTasksByDay(options[:brickroot],0,starttime,endtime,options[:tasks])
+                $brick_tree.printTasksByDay(options[:brickroot],0,startdate,enddate,options[:tasks])
             else
                 $brick_tree.printSubtreeTotalTime(options[:brickroot],0,starttime,endtime,options[:tasks])
             end
