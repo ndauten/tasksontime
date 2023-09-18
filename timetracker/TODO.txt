@@ -4,6 +4,12 @@
 <=== Bugs ===>
     - [ ] Fix Traversal Preorder;;
     - [ ] Rename moves but fails to apply new name;;
+    - [x] fix bug in date printouts for printbyday;;
+    - [ ] revise printing and time comparisons for all except printbyday: bug
+      on 0:00 possibly;;
+    - [ ] remove deprecated functions in transition to print weekly;;
+    - [ ] Fix datetime issues for print time records---I fixed things for print
+      by day but didn't revise old uses;;
 
 <=== Functionality ===>
     [ ] Tree modification;;
