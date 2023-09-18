@@ -553,7 +553,7 @@ class BrickTree
         daystasks.sort.each{|task| print "\t", task, "\n"}
         pomos += daypomos
       }
-      print "\nTotal days: #{(dateEnd-dateBegin).to_i} and total pomos: #{pomos}\n"
+      print "\nTotal days: #{(dateEnd-dateBegin).to_i} and total pomos: #{pomos.to_i}\n"
     end
 
     def printSubtree(brickName="root", indent=0)
