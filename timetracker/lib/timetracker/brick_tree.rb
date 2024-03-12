@@ -552,10 +552,11 @@ class BrickTree
         pomosextra = daypomos/4
         print date.strftime('%m.%d.%y -- %a'), " -- [", daypomos, "/", pomosextra+daypomos,"] -- ",(pomosextra+daypomos)*25/60,"h (@ +1/4)\n"
         daystasks.sort.each{|task| print "\t", task, "\n"}
-        daypomos=0
         pomos += daypomos
+        daypomos = 0
       }
-      print "\nTotal days: #{(dateEnd-dateBegin).to_i} and total pomos: #{pomos.to_i}\n"
+      totalhours = (pomos/4+pomos)*25/60
+      print "\nTotal days: #{(dateEnd-dateBegin).to_i} with a total of #{pomos.to_i} pomos and #{totalhours.to_i} hours (@+1/4)\n"
     end
 
     def printSubtree(brickName="root", indent=0)
