@@ -549,8 +549,10 @@ class BrickTree
       # for each day in range
       (dateBegin..dateEnd).each{|date|
         daystasks,daypomos = getTimeRecordsByDay(treeroot,date)
-        print date.strftime('%m.%d.%y -- %a'), " -- [", daypomos, "]\n"
+        pomosextra = daypomos/4
+        print date.strftime('%m.%d.%y -- %a'), " -- [", daypomos, "/", pomosextra+daypomos,"] -- ",(pomosextra+daypomos)*25/60,"h (@ +1/4)\n"
         daystasks.sort.each{|task| print "\t", task, "\n"}
+        daypomos=0
         pomos += daypomos
       }
       print "\nTotal days: #{(dateEnd-dateBegin).to_i} and total pomos: #{pomos.to_i}\n"
