@@ -549,8 +549,13 @@ class BrickTree
       # for each day in range
       (dateBegin..dateEnd).each{|date|
         daystasks,daypomos = getTimeRecordsByDay(treeroot,date)
+        # for every 4 get 25 mins break
         pomosextra = daypomos/4
-        print date.strftime('%m.%d.%y -- %a'), " -- [", daypomos, "/", pomosextra+daypomos,"] -- ",(pomosextra+daypomos)*25/60,"h (@ +1/4)\n"
+        # for every pomo get 5 min break
+        for pomo in 1..daypomos
+          pomosextra += 5.0/25.0
+        end
+        print date.strftime('%m.%d.%y -- %a'), " -- [", daypomos, "/", (pomosextra+daypomos).floor(1),"] -- ",((pomosextra+daypomos)*25/60).floor(1),"h (@ +1/4 + .8/4)\n"
         daystasks.sort.each{|task| print "\t", task, "\n"}
         pomos += daypomos
         daypomos = 0
