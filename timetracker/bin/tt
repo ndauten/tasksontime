@@ -1,0 +1,6 @@
+#!/bin/zsh
+
+BASE=~/iCloud/schedule/tasksontime/timetracker
+BIN=${BASE}/bin
+EXE=${BIN}/timetracker
+cd $BASE && bundle exec $EXE $@
