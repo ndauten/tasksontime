@@ -11,12 +11,18 @@ In an effort to start conquering my perfectionist tendencies, where perfect is t
 - Methods
 - Tools
 
+### Important Things
+
+- It's important to me to be able to *get and see credit* for effort: tasks checked, points awarded, time tracked, etc. 
+
 ## Topics Brainstorm
 
 - Influences:
   - GTD
   - Pomodoro
   - First things First
+  - Points system
+  - String of Pearls
   
 Possible outlines for this document: (could make this a separate file)
   - Timeline based: go through the years
