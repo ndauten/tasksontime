@@ -96,7 +96,7 @@ command [:show,:sh] do |c|
         :default_value => (Date.today - Date.today.wday)..Date.today+1,
         :arg_name => "range",
         :type => Date..Date,
-        :desc => "Date range to print in format '%m.%d.%y..%m.%d.%y' or standard with a '-' separating"
+        :desc => "Date range to print in format '%m.%d.%y-%m.%d.%y' or standard with a '-' separating"
     
     c.flag [:b,:brickroot],
         :default_value => "root",
