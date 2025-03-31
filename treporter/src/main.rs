@@ -8,21 +8,25 @@ fn load_env_or_exit() -> (String, String, String, String) {
 
     let gitlab_token = env::var("GITLAB_TOKEN").unwrap_or_else(|_| {
         eprintln!("❌ Error: GITLAB_TOKEN not found in .env or environment.");
+        print_help();
         process::exit(1);
     });
     
     let gitlab_username = env::var("GITLAB_USERNAME").unwrap_or_else(|_| {
         eprintln!("❌ Error: USERNAME not found in .env or environment.");
+        print_help();
         process::exit(1);
     });
 
     let github_token = env::var("GITHUB_TOKEN").unwrap_or_else(|_| {
         eprintln!("❌ Error: GITHUB_TOKEN not found in .env or environment.");
+        print_help();
         process::exit(1);
     });
 
     let github_username = env::var("GITLAB_USERNAME").unwrap_or_else(|_| {
         eprintln!("❌ Error: USERNAME not found in .env or environment.");
+        print_help();
         process::exit(1);
     });
 
@@ -176,6 +180,7 @@ fn parse_args() -> (Option<String>, Option<String>) {
     let mut since = None;
     let mut until = None;
 
+    eprintln!("Error: Missing value for --since");
     let mut i = 1;
     while i < args.len() {
         match args[i].as_str() {
@@ -213,11 +218,11 @@ fn parse_args() -> (Option<String>, Option<String>) {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let (gitlab_token, gitlab_username, github_token, github_username) = load_env_or_exit();
-    let client = Client::new();
-
     // Parse command-line arguments
     let (since_arg, until_arg) = parse_args();
+
+    let (gitlab_token, gitlab_username, github_token, github_username) = load_env_or_exit();
+    let client = Client::new();
 
     // Determine date range
     let (since, until) = if let (Some(since), Some(until)) = (since_arg, until_arg) {
