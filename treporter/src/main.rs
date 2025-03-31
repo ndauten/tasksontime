@@ -180,7 +180,6 @@ fn parse_args() -> (Option<String>, Option<String>) {
     let mut since = None;
     let mut until = None;
 
-    eprintln!("Error: Missing value for --since");
     let mut i = 1;
     while i < args.len() {
         match args[i].as_str() {
