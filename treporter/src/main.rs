@@ -1,15 +1,23 @@
 use chrono::{Duration, Utc};
 use reqwest::blocking::Client;
 use serde::Deserialize;
-use std::fs::File;
-use std::io::Write;
-use std::env;
-use dotenvy::dotenv;
+use std::{env, fs::File, process};
 
+fn load_env_or_exit() -> (String, String) {
+    dotenvy::dotenv().ok(); // Loads from .env file if present
 
-const GITLAB_URL: &str = "https://gitlab.com";
-const USERNAME: &str = "ndauten";
-const DAYS_BACK: i64 = 90;
+    let token = env::var("GITLAB_TOKEN").unwrap_or_else(|_| {
+        eprintln!("❌ Error: GITLAB_TOKEN not found in .env or environment.");
+        process::exit(1);
+    });
+
+    let username = env::var("GITLAB_USERNAME").unwrap_or_else(|_| {
+        eprintln!("❌ Error: GITLAB_USERNAME not found in .env or environment.");
+        process::exit(1);
+    });
+
+    (token, username)
+}
 
 #[derive(Debug, Deserialize, serde::Serialize)]
 struct Event {
@@ -18,6 +26,9 @@ struct Event {
     target_type: Option<String>,
     created_at: String,
 }
+
+const GITLAB_URL: &str = "https://gitlab.com";
+const DAYS_BACK: i64 = 90;
 
 fn get_user_id(client: &Client, token: &str, username: &str) -> Result<u64, reqwest::Error> {
     let url = format!("{}/api/v4/users?username={}", GITLAB_URL, username);
@@ -56,16 +67,11 @@ fn get_user_events(client: &Client, token: &str, user_id: u64, since: &str) -> R
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-
-    // Load personal access token from .env file
-    dotenv().ok();
-    let token = env::var("GITLAB_TOKEN")
-        .expect("GITLAB_TOKEN environment variable not set");
-
+    let (token, username) = load_env_or_exit();
     let client = Client::new();
     let since = (Utc::now() - Duration::days(DAYS_BACK)).date_naive().to_string();
 
-    let user_id = get_user_id(&client, &token, USERNAME)?;
+    let user_id = get_user_id(&client, &token, &username)?;
     let events = get_user_events(&client, &token, user_id, &since)?;
 
     let mut wtr = csv::Writer::from_writer(File::create("gitlab_activity.csv")?);
@@ -73,6 +79,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         wtr.serialize(event)?;
     }
 
-    println!("Saved {} events to gitlab_activity.csv", events.len());
+    println!("✅ Saved {} events to gitlab_activity.csv", events.len());
     Ok(())
 }
+
