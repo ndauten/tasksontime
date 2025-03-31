@@ -1,7 +1,7 @@
-use chrono::{Duration, Utc};
+use chrono::{Datelike, NaiveDate, Utc};
 use reqwest::blocking::Client;
-use serde_json::{Map, Value};
-use std::{collections::HashMap, env, fs::File, io::Write, process};
+use serde_json::Value;
+use std::{env, fs::File, io::Write, process};
 
 fn load_env_or_exit() -> (String, String) {
     dotenvy::dotenv().ok(); // Loads from .env file if present
@@ -20,7 +20,6 @@ fn load_env_or_exit() -> (String, String) {
 }
 
 const GITLAB_URL: &str = "https://gitlab.com";
-const DAYS_BACK: i64 = 30;
 
 fn get_user_id(client: &Client, token: &str, username: &str) -> Result<u64, reqwest::Error> {
     let url = format!("{}/api/v4/users?username={}", GITLAB_URL, username);
@@ -126,10 +125,94 @@ fn populate_event_details(client: &Client, token: &str, event: &mut Value) -> Re
     Ok(())
 }
 
+fn print_help() {
+    println!(
+        "Usage: gitlab_activity [OPTIONS]
+
+Options:
+  --help, -h          Print this help message
+  --since <DATE>      Start date for fetching events (format: YYYY-MM-DD)
+  --until <DATE>      End date for fetching events (format: YYYY-MM-DD)
+
+Description:
+  This program fetches GitLab activity events for a user and saves them to a JSON file.
+  By default, it fetches events from the start of the current month to the current date.
+
+Examples:
+  Fetch events for the current month:
+    gitlab_activity
+
+  Fetch events for a specific date range:
+    gitlab_activity --since 2025-03-01 --until 2025-03-31
+"
+    );
+}
+
+fn parse_args() -> (Option<String>, Option<String>) {
+    let args: Vec<String> = env::args().collect();
+    let mut since = None;
+    let mut until = None;
+
+    let mut i = 1;
+    while i < args.len() {
+        match args[i].as_str() {
+            "--help" | "-h" => {
+                print_help();
+                process::exit(0);
+            }
+            "--since" => {
+                if i + 1 < args.len() {
+                    since = Some(args[i + 1].clone());
+                    i += 1;
+                } else {
+                    eprintln!("Error: Missing value for --since");
+                    process::exit(1);
+                }
+            }
+            "--until" => {
+                if i + 1 < args.len() {
+                    until = Some(args[i + 1].clone());
+                    i += 1;
+                } else {
+                    eprintln!("Error: Missing value for --until");
+                    process::exit(1);
+                }
+            }
+            _ => {
+                eprintln!("Error: Unknown argument '{}'", args[i]);
+                process::exit(1);
+            }
+        }
+        i += 1;
+    }
+
+    (since, until)
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (token, username) = load_env_or_exit();
     let client = Client::new();
-    let since = (Utc::now() - Duration::days(DAYS_BACK)).date_naive().to_string();
+
+    // Parse command-line arguments
+    let (since_arg, until_arg) = parse_args();
+
+    // Determine date range
+    let (since, until) = if let (Some(since), Some(until)) = (since_arg, until_arg) {
+        (since, until)
+    } else {
+        // Default to the current month to date
+        let now = Utc::now().naive_utc();
+        let date = now.date(); // Extract the NaiveDate
+        let start_of_month = NaiveDate::from_ymd_opt(date.year(), date.month(), 1)
+            .unwrap()
+            .and_hms_opt(0, 0, 0)
+            .unwrap();
+        let today = date.and_hms_opt(23, 59, 59).unwrap();
+
+        (start_of_month.to_string(), today.to_string())
+    };
+
+    println!("Fetching events from {} to {}", since, until);
 
     let user_id = get_user_id(&client, &token, &username)?;
     let mut events = get_user_events(&client, &token, user_id, &since)?;
