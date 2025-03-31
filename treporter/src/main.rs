@@ -3,20 +3,30 @@ use reqwest::blocking::Client;
 use serde_json::Value;
 use std::{env, fs::File, io::Write, process};
 
-fn load_env_or_exit() -> (String, String) {
+fn load_env_or_exit() -> (String, String, String, String) {
     dotenvy::dotenv().ok(); // Loads from .env file if present
 
-    let token = env::var("GITLAB_TOKEN").unwrap_or_else(|_| {
+    let gitlab_token = env::var("GITLAB_TOKEN").unwrap_or_else(|_| {
         eprintln!("❌ Error: GITLAB_TOKEN not found in .env or environment.");
         process::exit(1);
     });
-
-    let username = env::var("GITLAB_USERNAME").unwrap_or_else(|_| {
-        eprintln!("❌ Error: GITLAB_USERNAME not found in .env or environment.");
+    
+    let gitlab_username = env::var("GITLAB_USERNAME").unwrap_or_else(|_| {
+        eprintln!("❌ Error: USERNAME not found in .env or environment.");
         process::exit(1);
     });
 
-    (token, username)
+    let github_token = env::var("GITHUB_TOKEN").unwrap_or_else(|_| {
+        eprintln!("❌ Error: GITHUB_TOKEN not found in .env or environment.");
+        process::exit(1);
+    });
+
+    let github_username = env::var("GITLAB_USERNAME").unwrap_or_else(|_| {
+        eprintln!("❌ Error: USERNAME not found in .env or environment.");
+        process::exit(1);
+    });
+
+    (gitlab_token, gitlab_username, github_token, github_username)
 }
 
 const GITLAB_URL: &str = "https://gitlab.com";
@@ -56,6 +66,19 @@ fn get_user_events(client: &Client, token: &str, user_id: u64, since: &str) -> R
 
     println!("Fetched {} events for user ID {}", events.len(), user_id);
     Ok(events)
+}
+
+fn get_github_events(client: &Client, token: &str, username: &str) -> Result<Vec<Value>, reqwest::Error> {
+    let url = format!("https://api.github.com/users/{}/events", username);
+    let resp = client
+        .get(&url)
+        .header("Authorization", format!("token {}", token))
+        .header("User-Agent", "gitlab_activity_fetcher") // GitHub requires a User-Agent header
+        .send()?
+        .json::<Vec<Value>>()?;
+
+    println!("Fetched {} events for GitHub user {}", resp.len(), username);
+    Ok(resp)
 }
 
 fn populate_event_details(client: &Client, token: &str, event: &mut Value) -> Result<(), reqwest::Error> {
@@ -190,7 +213,7 @@ fn parse_args() -> (Option<String>, Option<String>) {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let (token, username) = load_env_or_exit();
+    let (gitlab_token, gitlab_username, github_token, github_username) = load_env_or_exit();
     let client = Client::new();
 
     // Parse command-line arguments
@@ -214,19 +237,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Fetching events from {} to {}", since, until);
 
-    let user_id = get_user_id(&client, &token, &username)?;
-    let mut events = get_user_events(&client, &token, user_id, &since)?;
+    // Fetch GitLab events
+    let user_id = get_user_id(&client, &gitlab_token, &gitlab_username)?;
+    let mut gitlab_events = get_user_events(&client, &gitlab_token, user_id, &since)?;
 
-    for event in &mut events {
-        populate_event_details(&client, &token, event)?;
+    for event in &mut gitlab_events {
+        populate_event_details(&client, &gitlab_token, event)?;
     }
 
+    // Fetch GitHub events
+    let github_events = get_github_events(&client, &github_token, &github_username)?;
+
+    // Combine events from both platforms
+    let mut all_events = gitlab_events;
+    all_events.extend(github_events);
+
     // Serialize events to JSON and save to a file
-    let file_path = "gitlab_activity.json";
+    let file_path = "all_activity.json";
     let mut file = File::create(file_path)?;
-    let json_data = serde_json::to_string_pretty(&events)?;
+    let json_data = serde_json::to_string_pretty(&all_events)?;
     file.write_all(json_data.as_bytes())?;
 
-    println!("✅ Saved {} events to {}", events.len(), file_path);
+    println!("✅ Saved {} events to {}", all_events.len(), file_path);
     Ok(())
 }
