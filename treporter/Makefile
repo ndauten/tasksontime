@@ -22,7 +22,7 @@ SRC_DIR 		:= src
 
 .PHONY: all build run test clean install setup-rust
 
-all: setup build test example
+all: setup build test 
 
 #--- use automated testing framework to test
 test: setup
