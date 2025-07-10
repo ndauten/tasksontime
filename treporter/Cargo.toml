@@ -1,7 +1,8 @@
 [package]
-name = "gitlab_activity"
+name = "treporter"
 version = "0.1.0"
 edition = "2021"
+description = "Automated project reporting tool with LLM integration"
 
 [dependencies]
 reqwest = { version = "0.11", features = ["json", "blocking"] }
@@ -9,5 +10,14 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 csv = "1.1"
 chrono = { version = "0.4", features = ["serde"] }
-dotenvy = "0.15" 
+dotenvy = "0.15"
+toml = "0.8"
+clap = { version = "4.0", features = ["derive"] }
+anyhow = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+tera = "1.0"
+glob = "0.3"
+regex = "1.0"
+git2 = "0.18"
+walkdir = "2.0" 
 
