@@ -35,7 +35,11 @@ pub struct GitLabConfig {
     pub token_env: String,
     pub username_env: String,
     pub base_url: String,
-    pub organizations: Vec<String>,
+    pub repositories: Option<Vec<String>>,
+    pub include_issues: Option<bool>,
+    pub include_merge_requests: Option<bool>,
+    pub include_commits: Option<bool>,
+    pub include_wiki: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

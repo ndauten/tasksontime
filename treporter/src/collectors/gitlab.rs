@@ -30,48 +30,122 @@ impl GitLabCollector {
         })
     }
 
-    pub async fn collect(&self, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<GitLabEvent>> {
-        println!("🔍 Collecting GitLab repositories and commits from {} to {}", 
+    pub async fn collect(&self, config: &GitLabConfig, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<GitLabEvent>> {
+        println!("🔍 Collecting GitLab repositories and events from {} to {}", 
                  start_date.format("%Y-%m-%d"), end_date.format("%Y-%m-%d"));
         
-        // Step 1: Get ALL repositories - both owned and member
-        let all_repos = self.get_all_repositories().await?;
+        // Get repositories based on configuration
+        let repositories = if let Some(repo_list) = &config.repositories {
+            self.get_specific_repositories(repo_list).await?
+        } else {
+            // Fallback to all repositories if no configuration
+            self.get_all_repositories().await?
+        };
         
-        println!("📋 Found {} total GitLab repositories", all_repos.len());
+        println!("📋 Found {} GitLab repositories to collect from", repositories.len());
         
-        // Step 2: List all repositories so we can see what we're working with
-        for repo in &all_repos {
+        // List all repositories so we can see what we're working with
+        for repo in &repositories {
             let name = repo["name"].as_str().unwrap_or("Unknown");
             let path = repo["path_with_namespace"].as_str().unwrap_or("Unknown");
             println!("  📁 Repository: {} ({})", name, path);
         }
         
-        // Step 3: Collect commits from ALL repositories
+        // Collect events from repositories
         let mut all_events = Vec::new();
         
-        for repo in all_repos {
+        // Get defaults for what to collect
+        let include_commits = config.include_commits.unwrap_or(true);
+        let include_issues = config.include_issues.unwrap_or(true);
+        let include_merge_requests = config.include_merge_requests.unwrap_or(true);
+        let _include_wiki = config.include_wiki.unwrap_or(true);
+        
+        for repo in repositories {
             if let Some(project_id) = repo["id"].as_u64() {
                 let project_name = repo["name"].as_str().unwrap_or("Unknown");
                 let project_path = repo["path_with_namespace"].as_str().unwrap_or("Unknown");
                 
-                println!("  🔍 Collecting commits from: {} ({})", project_name, project_path);
+                println!("  🔍 Collecting from: {} ({})", project_name, project_path);
                 
-                match self.get_project_commits(project_id, start_date, end_date).await {
-                    Ok(commits) => {
-                        if !commits.is_empty() {
-                            println!("    ✅ Found {} commits", commits.len());
+                // Collect commits
+                if include_commits {
+                    match self.get_project_commits(project_id, start_date, end_date).await {
+                        Ok(commits) => {
+                            if !commits.is_empty() {
+                                println!("    ✅ Found {} commits", commits.len());
+                            }
+                            all_events.extend(commits);
+                        },
+                        Err(e) => {
+                            println!("    ⚠️  Failed to get commits: {}", e);
                         }
-                        all_events.extend(commits);
-                    },
-                    Err(e) => {
-                        println!("    ⚠️  Failed to get commits: {}", e);
                     }
                 }
+                
+                // Collect issues
+                if include_issues {
+                    match self.get_project_issues(project_id, start_date, end_date).await {
+                        Ok(issues) => {
+                            if !issues.is_empty() {
+                                println!("    ✅ Found {} issues", issues.len());
+                            }
+                            all_events.extend(issues);
+                        },
+                        Err(e) => {
+                            println!("    ⚠️  Failed to get issues: {}", e);
+                        }
+                    }
+                }
+                
+                // Collect merge requests
+                if include_merge_requests {
+                    match self.get_project_merge_requests(project_id, start_date, end_date).await {
+                        Ok(mrs) => {
+                            if !mrs.is_empty() {
+                                println!("    ✅ Found {} merge requests", mrs.len());
+                            }
+                            all_events.extend(mrs);
+                        },
+                        Err(e) => {
+                            println!("    ⚠️  Failed to get merge requests: {}", e);
+                        }
+                    }
+                }
+                
+                // TODO: Collect wiki if include_wiki is true
             }
         }
         
         println!("✅ Collected {} total GitLab events", all_events.len());
         Ok(all_events)
+    }
+
+    async fn get_specific_repositories(&self, repo_paths: &[String]) -> Result<Vec<Value>> {
+        let mut repos = Vec::new();
+        
+        for repo_path in repo_paths {
+            println!("  🔍 Looking for repository: {}", repo_path);
+            
+            // URL encode the repository path
+            let encoded_path = urlencoding::encode(repo_path);
+            let url = format!("{}/api/v4/projects/{}", self.base_url, encoded_path);
+            
+            let resp = self.client
+                .get(&url)
+                .header("PRIVATE-TOKEN", &self.token)
+                .send()
+                .await?;
+                
+            if resp.status().is_success() {
+                let repo = resp.json::<Value>().await?;
+                repos.push(repo);
+                println!("    ✅ Found: {}", repo_path);
+            } else {
+                println!("    ⚠️  Repository not found or no access: {}", repo_path);
+            }
+        }
+        
+        Ok(repos)
     }
 
     async fn get_all_repositories(&self) -> Result<Vec<Value>> {
@@ -203,6 +277,92 @@ impl GitLabCollector {
         Ok(commits)
     }
 
+    async fn get_project_issues(&self, project_id: u64, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<GitLabEvent>> {
+        let mut issues = Vec::new();
+        let mut page = 1;
+        
+        loop {
+            let url = format!(
+                "{}/api/v4/projects/{}/issues?page={}&per_page=100&created_after={}&created_before={}",
+                self.base_url, project_id, page,
+                start_date.format("%Y-%m-%dT%H:%M:%S%.3fZ"),
+                end_date.format("%Y-%m-%dT%H:%M:%S%.3fZ")
+            );
+            
+            let resp = self.client
+                .get(&url)
+                .header("PRIVATE-TOKEN", &self.token)
+                .send()
+                .await?;
+                
+            if !resp.status().is_success() {
+                break;
+            }
+            
+            let issue_data = resp.json::<Vec<Value>>().await?;
+            
+            if issue_data.is_empty() {
+                break;
+            }
+            
+            for issue_json in issue_data {
+                if let Ok(event) = self.parse_issue_event(issue_json, project_id) {
+                    issues.push(event);
+                }
+            }
+            
+            page += 1;
+            if page > 5 { // Safety limit
+                break;
+            }
+        }
+        
+        Ok(issues)
+    }
+
+    async fn get_project_merge_requests(&self, project_id: u64, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<GitLabEvent>> {
+        let mut merge_requests = Vec::new();
+        let mut page = 1;
+        
+        loop {
+            let url = format!(
+                "{}/api/v4/projects/{}/merge_requests?page={}&per_page=100&created_after={}&created_before={}",
+                self.base_url, project_id, page,
+                start_date.format("%Y-%m-%dT%H:%M:%S%.3fZ"),
+                end_date.format("%Y-%m-%dT%H:%M:%S%.3fZ")
+            );
+            
+            let resp = self.client
+                .get(&url)
+                .header("PRIVATE-TOKEN", &self.token)
+                .send()
+                .await?;
+                
+            if !resp.status().is_success() {
+                break;
+            }
+            
+            let mr_data = resp.json::<Vec<Value>>().await?;
+            
+            if mr_data.is_empty() {
+                break;
+            }
+            
+            for mr_json in mr_data {
+                if let Ok(event) = self.parse_merge_request_event(mr_json, project_id) {
+                    merge_requests.push(event);
+                }
+            }
+            
+            page += 1;
+            if page > 5 { // Safety limit
+                break;
+            }
+        }
+        
+        Ok(merge_requests)
+    }
+
     fn parse_commit_event(&self, commit_json: Value, project_id: u64) -> Result<GitLabEvent> {
         let created_at_str = commit_json["created_at"]
             .as_str()
@@ -226,6 +386,56 @@ impl GitLabCollector {
             created_at,
             details: Some(format!("Commit: {}", commit_json["message"].as_str().unwrap_or("No message"))),
             author_name: commit_json["author_name"].as_str().map(|s| s.to_string()),
+        };
+
+        Ok(event)
+    }
+
+    fn parse_issue_event(&self, issue_json: Value, project_id: u64) -> Result<GitLabEvent> {
+        let created_at_str = issue_json["created_at"]
+            .as_str()
+            .ok_or_else(|| anyhow!("Missing created_at field in issue"))?;
+        
+        let created_at = DateTime::parse_from_rfc3339(created_at_str)?
+            .with_timezone(&Utc);
+
+        let event = GitLabEvent {
+            id: issue_json["id"].as_u64().unwrap_or(0),
+            action_name: "opened".to_string(),
+            target_type: Some("Issue".to_string()),
+            target_title: Some(issue_json["title"].as_str().unwrap_or("Untitled issue").to_string()),
+            project_id: Some(project_id),
+            project_name: None,
+            created_at,
+            details: Some(format!("Issue #{}: {}", 
+                issue_json["iid"].as_u64().unwrap_or(0),
+                issue_json["title"].as_str().unwrap_or("No title"))),
+            author_name: issue_json["author"]["name"].as_str().map(|s| s.to_string()),
+        };
+
+        Ok(event)
+    }
+
+    fn parse_merge_request_event(&self, mr_json: Value, project_id: u64) -> Result<GitLabEvent> {
+        let created_at_str = mr_json["created_at"]
+            .as_str()
+            .ok_or_else(|| anyhow!("Missing created_at field in merge request"))?;
+        
+        let created_at = DateTime::parse_from_rfc3339(created_at_str)?
+            .with_timezone(&Utc);
+
+        let event = GitLabEvent {
+            id: mr_json["id"].as_u64().unwrap_or(0),
+            action_name: "opened".to_string(),
+            target_type: Some("MergeRequest".to_string()),
+            target_title: Some(mr_json["title"].as_str().unwrap_or("Untitled merge request").to_string()),
+            project_id: Some(project_id),
+            project_name: None,
+            created_at,
+            details: Some(format!("Merge Request !{}: {}", 
+                mr_json["iid"].as_u64().unwrap_or(0),
+                mr_json["title"].as_str().unwrap_or("No title"))),
+            author_name: mr_json["author"]["name"].as_str().map(|s| s.to_string()),
         };
 
         Ok(event)

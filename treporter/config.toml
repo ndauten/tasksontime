@@ -13,7 +13,21 @@ enabled = true
 token_env = "GITLAB_TOKEN"
 username_env = "GITLAB_USERNAME"
 base_url = "https://gitlab.com"
-organizations = ["spear-hq", "upenn-cpm", "Serenitix", "SPEAR"]
+# List of specific repositories to collect from (format: namespace/project)
+repositories = [
+    "bxsays/callsite-finder",
+    "serenitix/projects/spear/hyperspear",
+    "serenitix/projects/spear/cpm_if_tools",
+    "serenitix/projects/spear/spear-hq",
+    "serenitix/projects/hyperplanes-project/hyperplanes",
+    "serenitix/contracts/upenn-cpm-hq",
+    "fierce-lab/objectencapsulation"
+]
+# What to collect from each repository
+include_issues = true
+include_merge_requests = true
+include_commits = true
+include_wiki = true
 
 # GitHub configuration  
 [data_sources.github]
@@ -26,6 +40,10 @@ organizations = ["spear-hq", "upenn-cpm"]
 # bxsays/callsite-finder
 # serenitix/projects/spear/hyperspear
 # serenitix/projects/spear/cpm_if_tools
+# serenitix/projects/spear/spear-hq 
+# serenitix/projects/hyperplanes-project/hyperplanes
+# serenitix/contracts/upenn-cpm-hq
+# fierce-lab/objectencapsulation
 
 # Local file sources - comprehensive documentation coverage
 [data_sources.local_files]
@@ -55,32 +73,6 @@ time_patterns = [
 
 # Repository-specific configuration
 # Include all SPEAR project repositories for comprehensive reporting
-
-# GitLab repositories (remote)
-# Search for repositories by name across all user projects
-[[repositories]]
-name = "spear"
-platform = "gitlab"
-include_issues = true
-include_merge_requests = true
-include_commits = true
-include_wiki = true
-
-[[repositories]]
-name = "CPM"
-platform = "gitlab"
-include_issues = true
-include_merge_requests = true
-include_commits = true
-include_wiki = true
-
-[[repositories]]
-name = "hyperplanes"
-platform = "gitlab"
-include_issues = true
-include_merge_requests = true
-include_commits = true
-include_wiki = true
 
 # Local repositories with Git history
 [[repositories]]

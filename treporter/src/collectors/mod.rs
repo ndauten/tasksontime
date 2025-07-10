@@ -37,7 +37,7 @@ impl DataCollector {
                 
             match GitLabCollector::new(gitlab_config, gitlab_repos) {
                 Ok(collector) => {
-                    match collector.collect(start_date, end_date).await {
+                    match collector.collect(gitlab_config, start_date, end_date).await {
                         Ok(events) => {
                             data.gitlab_events = events;
                             data.metadata.sources_used.push("GitLab".to_string());
