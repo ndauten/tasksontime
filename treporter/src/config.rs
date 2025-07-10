@@ -58,6 +58,7 @@ pub struct RepositoryConfig {
     pub name: String,
     pub platform: String,
     pub group: Option<String>,
+    pub project_id: Option<u64>,
     pub path: Option<String>,
     pub include_issues: Option<bool>,
     pub include_merge_requests: Option<bool>,
