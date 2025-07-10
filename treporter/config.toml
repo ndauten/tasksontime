@@ -13,7 +13,7 @@ enabled = true
 token_env = "GITLAB_TOKEN"
 username_env = "GITLAB_USERNAME"
 base_url = "https://gitlab.com"
-organizations = ["spear-hq", "upenn-cpm"]
+organizations = ["spear-hq", "upenn-cpm", "Serenitix", "SPEAR"]
 
 # GitHub configuration  
 [data_sources.github]
@@ -22,13 +22,29 @@ token_env = "GITHUB_TOKEN"
 username_env = "GITHUB_USERNAME"
 organizations = ["spear-hq", "upenn-cpm"]
 
-# Local file sources
+# Repos:
+# bxsays/callsite-finder
+# serenitix/projects/spear/hyperspear
+# serenitix/projects/spear/cpm_if_tools
+
+# Local file sources - comprehensive documentation coverage
 [data_sources.local_files]
 enabled = true
 paths = [
-    "/Users/ndd/haven/thebrain/projects/spear/spear-hq/activities/ndd-tasks.md",
+    # SPEAR HQ documentation and activities
+    "/Users/ndd/haven/thebrain/projects/spear/spear-hq/activities/**/*.md",
     "/Users/ndd/haven/thebrain/projects/spear/spear-hq/spear-hq.wiki/**/*.md",
-    "/Users/ndd/haven/thebrain/projects/spear/upenn-cpm-hq/project/meetings/**/*.md"
+    "/Users/ndd/haven/thebrain/projects/spear/spear-hq/reports/**/*.md",
+    
+    # UPenn CPM project documentation
+    "/Users/ndd/haven/thebrain/projects/spear/upenn-cpm-hq/project/**/*.md",
+    "/Users/ndd/haven/thebrain/projects/spear/upenn-cpm-hq/**/*.md",
+    
+    # CPM Interchange Format documentation
+    "/Users/ndd/haven/thebrain/projects/spear/CPM-Interchange-Format/**/*.md",
+    
+    # Tasksontime project documentation
+    "/Users/ndd/haven/thebrain/projects/spear/tasksontime/**/*.md",
 ]
 # File patterns to look for time-based notes
 time_patterns = [
@@ -38,15 +54,35 @@ time_patterns = [
 ]
 
 # Repository-specific configuration
+# Include all SPEAR project repositories for comprehensive reporting
+
+# GitLab repositories (remote)
+# Search for repositories by name across all user projects
 [[repositories]]
-name = "spear-hq"
+name = "spear"
 platform = "gitlab"
-group = "spear-hq"
 include_issues = true
 include_merge_requests = true
 include_commits = true
 include_wiki = true
 
+[[repositories]]
+name = "CPM"
+platform = "gitlab"
+include_issues = true
+include_merge_requests = true
+include_commits = true
+include_wiki = true
+
+[[repositories]]
+name = "hyperplanes"
+platform = "gitlab"
+include_issues = true
+include_merge_requests = true
+include_commits = true
+include_wiki = true
+
+# Local repositories with Git history
 [[repositories]]
 name = "upenn-cpm-contract"
 platform = "local"
@@ -55,16 +91,36 @@ include_commits = true
 
 [[repositories]]
 name = "CPM-Interchange-Format"
-platform = "local"
+platform = "local" 
 path = "/Users/ndd/haven/thebrain/projects/spear/CPM-Interchange-Format"
 include_commits = true
+
+[[repositories]]
+name = "spear-hq-local"
+platform = "local"
+path = "/Users/ndd/haven/thebrain/projects/spear/spear-hq"
+include_commits = true
+
+# Add the tasksontime repo where treporter lives
+[[repositories]]
+name = "tasksontime"
+platform = "local"
+path = "/Users/ndd/haven/thebrain/projects/spear/tasksontime"
+include_commits = true
+
+# Note: upenn-cpm-hq has git conflicts, excluding for now
+# [[repositories]]
+# name = "upenn-cpm-hq"
+# platform = "local"
+# path = "/Users/ndd/haven/thebrain/projects/spear/upenn-cpm-hq"
+# include_commits = true
 
 # LLM Configuration
 [llm]
 provider = "openai"  # or "anthropic", "local"
-model = "gpt-4"
+model = "gpt-3.5-turbo"  # More accessible than gpt-4
 api_key_env = "OPENAI_API_KEY"
-max_tokens = 4000
+max_tokens = 2000  # Reduced for quota management
 temperature = 0.3
 
 # Report templates

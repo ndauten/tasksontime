@@ -9,6 +9,7 @@ use std::env;
 pub struct GitLabCollector {
     client: Client,
     token: String,
+    #[allow(dead_code)]
     username: String,
     base_url: String,
 }
