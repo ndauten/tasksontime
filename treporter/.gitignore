@@ -1,0 +1,22 @@
+# Rust build artifacts
+target/
+Cargo.lock
+
+# Environment files with sensitive data
+.env
+
+# Generated reports and data
+reports/
+*.json
+collected_data.json
+recent_data.json
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
