@@ -134,10 +134,17 @@ impl LlmClient {
         // Add GitLab commits
         for event in &data.gitlab_events {
             if event.action_name == "committed" && event.target_type.as_deref() == Some("Commit") {
-                all_commits.push(format!("- **{}** [{}]: {} [GitLab]", 
+                let commit_hash = event.commit_hash.as_deref()
+                    .map(|h| &h[..8.min(h.len())]) // Take first 8 chars
+                    .unwrap_or("Unknown");
+                let project_name = event.project_name.as_deref().unwrap_or("Unknown");
+                
+                all_commits.push(format!("- **{}** [{}] ({}): {} [GitLab:{}]", 
                     event.created_at.format("%Y-%m-%d"),
                     event.author_name.as_deref().unwrap_or("Unknown"),
-                    event.target_title.as_deref().unwrap_or("No title")));
+                    commit_hash,
+                    event.target_title.as_deref().unwrap_or("No title"),
+                    project_name));
             }
         }
         
@@ -314,18 +321,33 @@ impl LlmClient {
             if !gitlab_commits.is_empty() {
                 prompt.push_str("**GITLAB COMMITS:**\n");
                 for event in gitlab_commits {
+                    let commit_hash = event.commit_hash.as_deref()
+                        .map(|h| &h[..8.min(h.len())]) // Take first 8 chars
+                        .unwrap_or("Unknown");
+                    let project_name = event.project_name.as_deref().unwrap_or("Unknown");
+                    
                     prompt.push_str(&format!(
-                        "- {} [{}]: {} [GitLab]\n",
+                        "- {} [{}] ({}): {} [GitLab:{}]\n",
                         event.created_at.format("%Y-%m-%d"),
                         event.author_name.as_deref().unwrap_or("Unknown"),
-                        event.target_title.as_deref().unwrap_or("No title")
+                        commit_hash,
+                        event.target_title.as_deref().unwrap_or("No title"),
+                        project_name
                     ));
                 }
                 prompt.push_str("\n");
             }
             
             let other_events: Vec<_> = data.gitlab_events.iter()
-                .filter(|e| !(e.action_name == "committed" && e.target_type.as_deref() == Some("Commit")))
+                .filter(|e| {
+                    // Only include opened/closed issues and merge requests, exclude comments and other noise
+                    match e.action_name.as_str() {
+                        "opened" | "closed" | "merged" => {
+                            matches!(e.target_type.as_deref(), Some("Issue") | Some("MergeRequest"))
+                        },
+                        _ => false
+                    }
+                })
                 .collect();
             
             if !other_events.is_empty() {

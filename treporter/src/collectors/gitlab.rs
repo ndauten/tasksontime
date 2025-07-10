@@ -238,6 +238,10 @@ impl GitLabCollector {
         let mut commits = Vec::new();
         let mut page = 1;
         
+        // Get project info for project name
+        let project_info = self.get_project_info(project_id).await?;
+        let project_name = project_info["name"].as_str().unwrap_or("Unknown").to_string();
+        
         loop {
             let url = format!(
                 "{}/api/v4/projects/{}/repository/commits?page={}&per_page=100&since={}&until={}",
@@ -263,7 +267,7 @@ impl GitLabCollector {
             }
             
             for commit_json in commit_data {
-                if let Ok(event) = self.parse_commit_event(commit_json, project_id) {
+                if let Ok(event) = self.parse_commit_event(commit_json, project_id, &project_name) {
                     commits.push(event);
                 }
             }
@@ -275,6 +279,23 @@ impl GitLabCollector {
         }
         
         Ok(commits)
+    }
+
+    async fn get_project_info(&self, project_id: u64) -> Result<Value> {
+        let url = format!("{}/api/v4/projects/{}", self.base_url, project_id);
+        
+        let resp = self.client
+            .get(&url)
+            .header("PRIVATE-TOKEN", &self.token)
+            .send()
+            .await?;
+            
+        if !resp.status().is_success() {
+            return Err(anyhow!("Failed to get project info for project {}", project_id));
+        }
+        
+        let project_info = resp.json::<Value>().await?;
+        Ok(project_info)
     }
 
     async fn get_project_issues(&self, project_id: u64, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<GitLabEvent>> {
@@ -363,7 +384,7 @@ impl GitLabCollector {
         Ok(merge_requests)
     }
 
-    fn parse_commit_event(&self, commit_json: Value, project_id: u64) -> Result<GitLabEvent> {
+    fn parse_commit_event(&self, commit_json: Value, project_id: u64, project_name: &str) -> Result<GitLabEvent> {
         let created_at_str = commit_json["created_at"]
             .as_str()
             .ok_or_else(|| anyhow!("Missing created_at field in commit"))?;
@@ -371,8 +392,10 @@ impl GitLabCollector {
         let created_at = DateTime::parse_from_rfc3339(created_at_str)?
             .with_timezone(&Utc);
 
-        // Create a simple hash from the commit ID for the event ID
+        // Get the commit ID (hash)
         let commit_id = commit_json["id"].as_str().unwrap_or("");
+        
+        // Create a simple hash from the commit ID for the event ID
         let event_id = commit_id.chars().take(8).collect::<String>()
             .parse::<u64>().unwrap_or(project_id);
 
@@ -382,10 +405,11 @@ impl GitLabCollector {
             target_type: Some("Commit".to_string()),
             target_title: Some(commit_json["title"].as_str().unwrap_or("Untitled commit").to_string()),
             project_id: Some(project_id),
-            project_name: None,
+            project_name: Some(project_name.to_string()),
             created_at,
             details: Some(format!("Commit: {}", commit_json["message"].as_str().unwrap_or("No message"))),
             author_name: commit_json["author_name"].as_str().map(|s| s.to_string()),
+            commit_hash: Some(commit_id.to_string()),
         };
 
         Ok(event)
@@ -411,6 +435,7 @@ impl GitLabCollector {
                 issue_json["iid"].as_u64().unwrap_or(0),
                 issue_json["title"].as_str().unwrap_or("No title"))),
             author_name: issue_json["author"]["name"].as_str().map(|s| s.to_string()),
+            commit_hash: None,
         };
 
         Ok(event)
@@ -436,6 +461,7 @@ impl GitLabCollector {
                 mr_json["iid"].as_u64().unwrap_or(0),
                 mr_json["title"].as_str().unwrap_or("No title"))),
             author_name: mr_json["author"]["name"].as_str().map(|s| s.to_string()),
+            commit_hash: None,
         };
 
         Ok(event)

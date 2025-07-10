@@ -29,6 +29,7 @@ pub struct GitLabEvent {
     pub created_at: DateTime<Utc>,
     pub details: Option<String>,
     pub author_name: Option<String>,
+    pub commit_hash: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
