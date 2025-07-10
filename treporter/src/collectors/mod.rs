@@ -22,16 +22,22 @@ impl DataCollector {
         Self { config }
     }
 
-    pub fn collect(&self, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<CollectedData> {
+    pub async fn collect(&self, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<CollectedData> {
         let mut data = CollectedData::new();
         data.metadata.date_range_start = start_date;
         data.metadata.date_range_end = end_date;
 
         // Collect GitLab events
         if let Some(gitlab_config) = &self.config.data_sources.gitlab {
-            match GitLabCollector::new(gitlab_config) {
+            // Get GitLab repositories from config
+            let gitlab_repos: Vec<_> = self.config.repositories.iter()
+                .filter(|repo| repo.platform == "gitlab")
+                .cloned()
+                .collect();
+                
+            match GitLabCollector::new(gitlab_config, gitlab_repos) {
                 Ok(collector) => {
-                    match collector.collect(start_date, end_date) {
+                    match collector.collect(start_date, end_date).await {
                         Ok(events) => {
                             data.gitlab_events = events;
                             data.metadata.sources_used.push("GitLab".to_string());
@@ -47,7 +53,7 @@ impl DataCollector {
         if let Some(github_config) = &self.config.data_sources.github {
             match GitHubCollector::new(github_config) {
                 Ok(collector) => {
-                    match collector.collect(start_date, end_date) {
+                    match collector.collect(start_date, end_date).await {
                         Ok(events) => {
                             data.github_events = events;
                             data.metadata.sources_used.push("GitHub".to_string());

@@ -2,7 +2,7 @@ use crate::config::GitHubConfig;
 use crate::types::GitHubEvent;
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
-use reqwest::blocking::Client;
+use reqwest::Client;
 use serde_json::Value;
 use std::env;
 
@@ -29,20 +29,20 @@ impl GitHubCollector {
         })
     }
 
-    pub fn collect(&self, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<GitHubEvent>> {
+    pub async fn collect(&self, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<GitHubEvent>> {
         if !self.config.enabled {
             return Ok(Vec::new());
         }
 
         println!("🔍 Collecting GitHub events from {} to {}", start_date.format("%Y-%m-%d"), end_date.format("%Y-%m-%d"));
         
-        let events = self.get_user_events(start_date, end_date)?;
+        let events = self.get_user_events(start_date, end_date).await?;
         
         println!("✅ Collected {} GitHub events", events.len());
         Ok(events)
     }
 
-    fn get_user_events(&self, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<GitHubEvent>> {
+    async fn get_user_events(&self, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<GitHubEvent>> {
         let mut events = Vec::new();
         let mut page = 1;
 
@@ -54,14 +54,15 @@ impl GitHubCollector {
                 .header("Authorization", format!("Bearer {}", self.token))
                 .header("User-Agent", "treporter/1.0")
                 .header("Accept", "application/vnd.github+json")
-                .send()?;
+                .send()
+                .await?;
 
             if resp.status() == reqwest::StatusCode::FORBIDDEN {
                 println!("⚠️  GitHub API rate limit reached");
                 break;
             }
 
-            let event_list = resp.json::<Vec<Value>>()?;
+            let event_list = resp.json::<Vec<Value>>().await?;
 
             if event_list.is_empty() {
                 break;

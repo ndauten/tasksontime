@@ -52,7 +52,7 @@ async fn main() -> Result<()> {
                 start_date.format("%Y-%m-%d"), end_date.format("%Y-%m-%d"));
             
             let collector = DataCollector::new(config);
-            let data = collector.collect(start_date, end_date)?;
+            let data = collector.collect(start_date, end_date).await?;
             
             println!("📊 Collection Results:");
             println!("  GitLab events: {}", data.gitlab_events.len());
@@ -68,7 +68,7 @@ async fn main() -> Result<()> {
                 start_date.format("%Y-%m-%d"), end_date.format("%Y-%m-%d"));
             
             let collector = DataCollector::new(config);
-            let data = collector.collect(start_date, end_date)?;
+            let data = collector.collect(start_date, end_date).await?;
             
             data.save_to_file(output)?;
             println!("💾 Saved collected data to: {}", output);
@@ -85,7 +85,7 @@ async fn main() -> Result<()> {
                     let (start_date, end_date) = cli.parse_date_range()?;
                     println!("🔍 Collecting fresh data...");
                     let collector = DataCollector::new(config.clone());
-                    collector.collect(start_date, end_date)?
+                    collector.collect(start_date, end_date).await?
                 }
             };
             
@@ -104,7 +104,7 @@ async fn main() -> Result<()> {
                     let (start_date, end_date) = cli.parse_date_range()?;
                     println!("🔍 Collecting fresh data...");
                     let collector = DataCollector::new(config.clone());
-                    collector.collect(start_date, end_date)?
+                    collector.collect(start_date, end_date).await?
                 }
             };
             
@@ -123,7 +123,7 @@ async fn main() -> Result<()> {
                     let (start_date, end_date) = cli.parse_date_range()?;
                     println!("🔍 Collecting fresh data...");
                     let collector = DataCollector::new(config.clone());
-                    collector.collect(start_date, end_date)?
+                    collector.collect(start_date, end_date).await?
                 }
             };
             
