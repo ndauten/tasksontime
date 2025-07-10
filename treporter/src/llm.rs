@@ -15,8 +15,8 @@ pub struct LlmClient {
 impl LlmClient {
     pub fn new(config: LlmConfig) -> Result<Self> {
         let (api_key, fallback_mode) = match env::var(&config.api_key_env) {
-            Ok(key) => (Some(key), false),
-            Err(_) => {
+            Ok(key) if !key.is_empty() => (Some(key), false),
+            _ => {
                 eprintln!("⚠️  API key not found in environment variable: {}", config.api_key_env);
                 eprintln!("🔄 Running in fallback mode - will generate template-based reports");
                 (None, true)
@@ -51,32 +51,79 @@ impl LlmClient {
         
         // Replace template variables with actual data
         report = report.replace("{{project_name}}", "SPEAR Project");
-        report = report.replace("{{report_period}}", "January 2025");
+        report = report.replace("{{report_period}}", &format!("{} to {}", 
+            data.metadata.date_range_start.format("%B %Y"),
+            data.metadata.date_range_end.format("%B %Y")));
         
-        // Generate basic summaries
+        // Generate comprehensive quantitative summaries
         let total_items = data.gitlab_events.len() + data.github_events.len() + 
                          data.local_files.len() + data.git_commits.len();
         
+        // Count different types of GitLab activities
+        let mut gitlab_commits = 0;
+        let mut gitlab_issues = 0;
+        let mut gitlab_mrs = 0;
+        let mut gitlab_other = 0;
+        
+        for event in &data.gitlab_events {
+            match event.action_name.as_str() {
+                "committed" => gitlab_commits += 1,
+                "opened" | "closed" if event.target_type.as_deref() == Some("Issue") => gitlab_issues += 1,
+                "opened" | "closed" | "merged" if event.target_type.as_deref() == Some("MergeRequest") => gitlab_mrs += 1,
+                _ => gitlab_other += 1,
+            }
+        }
+        
+        // Calculate git commit statistics
+        let total_insertions: usize = data.git_commits.iter().map(|c| c.insertions).sum();
+        let total_deletions: usize = data.git_commits.iter().map(|c| c.deletions).sum();
+        let total_files_changed: usize = data.git_commits.iter().map(|c| c.files_changed.len()).sum();
+        
+        // Count unique repositories
+        let mut unique_repos = std::collections::HashSet::new();
+        for commit in &data.git_commits {
+            unique_repos.insert(&commit.repository);
+        }
+        
         let activity_summary = format!(
-            "During this period, we tracked {} total activities:\n\
-            - {} local file updates\n\
-            - {} git commits\n\
-            - {} GitLab events\n\
-            - {} GitHub events",
+            "**Quantitative Summary for Reporting Period:**\n\n\
+            **Total Activities Tracked: {}**\n\
+            - 📝 {} local file updates\n\
+            - 🔗 {} git commits across {} repositories\n\
+            - 🦊 {} GitLab events ({}C/{}I/{}MR/{}O)\n\
+            - 🐙 {} GitHub events\n\n\
+            **Development Metrics:**\n\
+            - **Lines of Code:** +{} insertions, -{} deletions\n\
+            - **Files Modified:** {} files across all commits\n\
+            - **Active Repositories:** {}\n\
+            - **Daily Average:** {:.1} activities per day",
             total_items,
             data.local_files.len(),
             data.git_commits.len(),
+            unique_repos.len(),
             data.gitlab_events.len(),
-            data.github_events.len()
+            gitlab_commits, gitlab_issues, gitlab_mrs, gitlab_other,
+            data.github_events.len(),
+            total_insertions,
+            total_deletions,
+            total_files_changed,
+            unique_repos.len(),
+            total_items as f64 / ((data.metadata.date_range_end - data.metadata.date_range_start).num_days() as f64 + 1.0)
         );
         
         report = report.replace("{{activity_summary}}", &activity_summary);
         
-        // Add recent commits if available
+        // Add recent commits with enhanced details
         if !data.git_commits.is_empty() {
             let recent_commits = data.git_commits.iter()
                 .take(5)
-                .map(|c| format!("- {} ({})", c.message.trim(), c.author))
+                .map(|c| format!("- **{}** [{}]: {} (+{} -{} lines in {} files)", 
+                    c.date.format("%Y-%m-%d"),
+                    c.author,
+                    c.message.lines().next().unwrap_or("No message").trim(),
+                    c.insertions,
+                    c.deletions,
+                    c.files_changed.len()))
                 .collect::<Vec<_>>()
                 .join("\n");
             report = report.replace("{{recent_commits}}", &recent_commits);
@@ -84,17 +131,29 @@ impl LlmClient {
             report = report.replace("{{recent_commits}}", "No commits found in the specified period");
         }
         
-        // Add file updates summary
+        // Add file updates summary with enhanced details
         if !data.local_files.is_empty() {
-            let file_updates = data.local_files.iter()
-                .take(10)
-                .map(|f| format!("- {}", f.file_name))
-                .collect::<Vec<_>>()
-                .join("\n");
+            let mut file_updates = String::new();
+            for file in data.local_files.iter().take(10) {
+                file_updates.push_str(&format!("- **{}** ({} entries)\n", 
+                    file.file_name, 
+                    file.time_based_entries.len() + file.content_snippets.len()));
+            }
             report = report.replace("{{file_updates}}", &file_updates);
         } else {
             report = report.replace("{{file_updates}}", "No file updates found in the specified period");
         }
+        
+        // Add quantitative placeholder replacements
+        report = report.replace("{{gitlab_events_count}}", &data.gitlab_events.len().to_string());
+        report = report.replace("{{github_events_count}}", &data.github_events.len().to_string());
+        report = report.replace("{{git_commits_count}}", &data.git_commits.len().to_string());
+        report = report.replace("{{local_files_count}}", &data.local_files.len().to_string());
+        report = report.replace("{{total_insertions}}", &total_insertions.to_string());
+        report = report.replace("{{total_deletions}}", &total_deletions.to_string());
+        report = report.replace("{{files_changed_count}}", &total_files_changed.to_string());
+        report = report.replace("{{unique_repos_count}}", &unique_repos.len().to_string());
+        report = report.replace("{{generation_date}}", &chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC").to_string());
         
         Ok(report)
     }
@@ -107,9 +166,16 @@ impl LlmClient {
                  create a well-structured, professional report that highlights accomplishments, progress, 
                  challenges, and next steps. Focus on meaningful insights rather than just listing activities.
                  
+                 **CRITICAL: Include explicit quantitative metrics and analysis throughout the report:**
+                 - Count and summarize different types of activities (commits, issues, MRs, file updates)
+                 - Calculate development velocity metrics (lines of code, files changed, daily averages)
+                 - Identify trends and patterns in the data
+                 - Provide numerical context for all major accomplishments
+                 - Include a dedicated 'Progress Metrics' section with specific numbers
+                 
                  The report should be suitable for stakeholders and project sponsors. Use clear, concise language
-                 and organize information logically. Include metrics where relevant and provide context for
-                 technical activities.".to_string()
+                 and organize information logically. Always lead with quantitative summaries before diving into
+                 qualitative analysis. Make the data actionable by highlighting what the numbers mean for project progress.".to_string()
             },
             "group_slides" => {
                 "You are creating slides for a group meeting based on project activity data.
@@ -117,10 +183,18 @@ impl LlmClient {
                  progress made, current blockers, and next steps. Be concise and focus on the most
                  important information that would be relevant to a team meeting.
                  
+                 **CRITICAL: Lead with quantitative metrics on every slide:**
+                 - Start with a 'By the Numbers' slide showing key metrics
+                 - Include specific counts for commits, issues, MRs, files changed
+                 - Show development velocity and activity trends
+                 - Use numbers to support every major point
+                 - Include progress indicators and completion rates where applicable
+                 
                  Format the output as Marp markdown with appropriate slide breaks and formatting.
-                 Use bullet points and clear headings. Keep text minimal and impactful.".to_string()
+                 Use bullet points and clear headings. Keep text minimal and impactful but always
+                 include the supporting numbers.".to_string()
             },
-            _ => "Create a summary report based on the provided project activity data.".to_string(),
+            _ => "Create a summary report based on the provided project activity data. Focus on quantitative metrics and measurable progress indicators.".to_string(),
         }
     }
 
@@ -133,17 +207,71 @@ impl LlmClient {
         
         prompt.push_str("PROJECT ACTIVITY DATA:\n\n");
         
-        // Add metadata
+        // Add metadata with quantitative summary
         prompt.push_str(&format!(
-            "Report Period: {} to {}\n",
+            "**REPORTING PERIOD:** {} to {} ({} days)\n",
             data.metadata.date_range_start.format("%Y-%m-%d"),
-            data.metadata.date_range_end.format("%Y-%m-%d")
+            data.metadata.date_range_end.format("%Y-%m-%d"),
+            (data.metadata.date_range_end - data.metadata.date_range_start).num_days() + 1
         ));
-        prompt.push_str(&format!("Data Sources: {}\n\n", data.metadata.sources_used.join(", ")));
+        prompt.push_str(&format!("**DATA SOURCES:** {}\n\n", data.metadata.sources_used.join(", ")));
+        
+        // Add quantitative overview
+        let total_items = data.gitlab_events.len() + data.github_events.len() + 
+                         data.local_files.len() + data.git_commits.len();
+        
+        // Calculate git commit statistics
+        let total_insertions: usize = data.git_commits.iter().map(|c| c.insertions).sum();
+        let total_deletions: usize = data.git_commits.iter().map(|c| c.deletions).sum();
+        let total_files_changed: usize = data.git_commits.iter().map(|c| c.files_changed.len()).sum();
+        
+        // Count unique repositories
+        let mut unique_repos = std::collections::HashSet::new();
+        for commit in &data.git_commits {
+            unique_repos.insert(&commit.repository);
+        }
+        
+        // Count different types of GitLab activities
+        let mut gitlab_commits = 0;
+        let mut gitlab_issues = 0;
+        let mut gitlab_mrs = 0;
+        let mut gitlab_other = 0;
+        
+        for event in &data.gitlab_events {
+            match event.action_name.as_str() {
+                "committed" => gitlab_commits += 1,
+                "opened" | "closed" if event.target_type.as_deref() == Some("Issue") => gitlab_issues += 1,
+                "opened" | "closed" | "merged" if event.target_type.as_deref() == Some("MergeRequest") => gitlab_mrs += 1,
+                _ => gitlab_other += 1,
+            }
+        }
+        
+        prompt.push_str(&format!(
+            "**QUANTITATIVE SUMMARY:**\n\
+            - Total Activities: {}\n\
+            - Git Commits: {} (across {} repos)\n\
+            - GitLab Events: {} ({}C/{}I/{}MR/{}O)\n\
+            - GitHub Events: {}\n\
+            - Local Files: {}\n\
+            - Lines Changed: +{} -{}\n\
+            - Files Modified: {}\n\
+            - Daily Average: {:.1} activities/day\n\n",
+            total_items,
+            data.git_commits.len(),
+            unique_repos.len(),
+            data.gitlab_events.len(),
+            gitlab_commits, gitlab_issues, gitlab_mrs, gitlab_other,
+            data.github_events.len(),
+            data.local_files.len(),
+            total_insertions,
+            total_deletions,
+            total_files_changed,
+            total_items as f64 / ((data.metadata.date_range_end - data.metadata.date_range_start).num_days() as f64 + 1.0)
+        ));
         
         // Add GitLab events summary
         if !data.gitlab_events.is_empty() {
-            prompt.push_str("GITLAB ACTIVITY:\n");
+            prompt.push_str("**GITLAB ACTIVITY DETAILS:**\n");
             for event in &data.gitlab_events {
                 prompt.push_str(&format!(
                     "- {} ({}): {} [{}]\n",
@@ -158,7 +286,7 @@ impl LlmClient {
         
         // Add GitHub events summary
         if !data.github_events.is_empty() {
-            prompt.push_str("GITHUB ACTIVITY:\n");
+            prompt.push_str("**GITHUB ACTIVITY DETAILS:**\n");
             for event in &data.github_events {
                 prompt.push_str(&format!(
                     "- {} ({}): {} [{}]\n",
@@ -173,7 +301,7 @@ impl LlmClient {
         
         // Add Git commits summary
         if !data.git_commits.is_empty() {
-            prompt.push_str("GIT COMMITS:\n");
+            prompt.push_str("**GIT COMMITS DETAILS:**\n");
             for commit in &data.git_commits {
                 prompt.push_str(&format!(
                     "- {} [{}]: {} (+{} -{} changes in {} files)\n",
@@ -190,9 +318,12 @@ impl LlmClient {
         
         // Add local files summary
         if !data.local_files.is_empty() {
-            prompt.push_str("LOCAL FILES & NOTES:\n");
+            prompt.push_str("**LOCAL FILES & NOTES DETAILS:**\n");
             for file in &data.local_files {
-                prompt.push_str(&format!("File: {}\n", file.file_name));
+                prompt.push_str(&format!("File: {} ({} time-based entries, {} content snippets)\n", 
+                    file.file_name, 
+                    file.time_based_entries.len(), 
+                    file.content_snippets.len()));
                 
                 for entry in &file.time_based_entries {
                     prompt.push_str(&format!(
