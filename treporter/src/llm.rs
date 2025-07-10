@@ -67,7 +67,7 @@ impl LlmClient {
         
         for event in &data.gitlab_events {
             match event.action_name.as_str() {
-                "committed" => gitlab_commits += 1,
+                "committed" if event.target_type.as_deref() == Some("Commit") => gitlab_commits += 1,
                 "opened" | "closed" if event.target_type.as_deref() == Some("Issue") => gitlab_issues += 1,
                 "opened" | "closed" | "merged" if event.target_type.as_deref() == Some("MergeRequest") => gitlab_mrs += 1,
                 _ => gitlab_other += 1,
@@ -89,21 +89,25 @@ impl LlmClient {
             "**Quantitative Summary for Reporting Period:**\n\n\
             **Total Activities Tracked: {}**\n\
             - 📝 {} local file updates\n\
-            - 🔗 {} git commits across {} repositories\n\
-            - 🦊 {} GitLab events ({}C/{}I/{}MR/{}O)\n\
+            - 🔗 {} local git commits across {} repositories\n\
+            - 🦊 {} GitLab commits (remote repositories)\n\
+            - 🦊 {} other GitLab events ({}I/{}MR/{}O)\n\
             - 🐙 {} GitHub events\n\n\
             **Development Metrics:**\n\
-            - **Lines of Code:** +{} insertions, -{} deletions\n\
-            - **Files Modified:** {} files across all commits\n\
-            - **Active Repositories:** {}\n\
+            - **Total Commits:** {} (local + remote)\n\
+            - **Lines of Code (local):** +{} insertions, -{} deletions\n\
+            - **Files Modified (local):** {} files\n\
+            - **Active Local Repositories:** {}\n\
             - **Daily Average:** {:.1} activities per day",
             total_items,
             data.local_files.len(),
             data.git_commits.len(),
             unique_repos.len(),
-            data.gitlab_events.len(),
-            gitlab_commits, gitlab_issues, gitlab_mrs, gitlab_other,
+            gitlab_commits,
+            data.gitlab_events.len() - gitlab_commits,
+            gitlab_issues, gitlab_mrs, gitlab_other,
             data.github_events.len(),
+            data.git_commits.len() + gitlab_commits,
             total_insertions,
             total_deletions,
             total_files_changed,
@@ -113,17 +117,40 @@ impl LlmClient {
         
         report = report.replace("{{activity_summary}}", &activity_summary);
         
-        // Add recent commits with enhanced details
-        if !data.git_commits.is_empty() {
-            let recent_commits = data.git_commits.iter()
-                .take(5)
-                .map(|c| format!("- **{}** [{}]: {} (+{} -{} lines in {} files)", 
-                    c.date.format("%Y-%m-%d"),
-                    c.author,
-                    c.message.lines().next().unwrap_or("No message").trim(),
-                    c.insertions,
-                    c.deletions,
-                    c.files_changed.len()))
+        // Add recent commits with enhanced details (combining local git commits and GitLab commits)
+        let mut all_commits = Vec::new();
+        
+        // Add local git commits
+        for commit in &data.git_commits {
+            all_commits.push(format!("- **{}** [{}]: {} (+{} -{} lines in {} files) [Local Git]", 
+                commit.date.format("%Y-%m-%d"),
+                commit.author,
+                commit.message.lines().next().unwrap_or("No message").trim(),
+                commit.insertions,
+                commit.deletions,
+                commit.files_changed.len()));
+        }
+        
+        // Add GitLab commits
+        for event in &data.gitlab_events {
+            if event.action_name == "committed" && event.target_type.as_deref() == Some("Commit") {
+                all_commits.push(format!("- **{}** [{}]: {} [GitLab]", 
+                    event.created_at.format("%Y-%m-%d"),
+                    event.author_name.as_deref().unwrap_or("Unknown"),
+                    event.target_title.as_deref().unwrap_or("No title")));
+            }
+        }
+        
+        // Sort commits by date (newest first)
+        all_commits.sort_by(|a, b| {
+            let date_a = &a[3..13]; // Extract date from "- **YYYY-MM-DD**"
+            let date_b = &b[3..13];
+            date_b.cmp(date_a) // Reverse order for newest first
+        });
+        
+        if !all_commits.is_empty() {
+            let recent_commits = all_commits.into_iter()
+                .take(10) // Show more commits since we're combining sources
                 .collect::<Vec<_>>()
                 .join("\n");
             report = report.replace("{{recent_commits}}", &recent_commits);
@@ -239,28 +266,37 @@ impl LlmClient {
         
         for event in &data.gitlab_events {
             match event.action_name.as_str() {
-                "committed" => gitlab_commits += 1,
+                "committed" if event.target_type.as_deref() == Some("Commit") => gitlab_commits += 1,
                 "opened" | "closed" if event.target_type.as_deref() == Some("Issue") => gitlab_issues += 1,
                 "opened" | "closed" | "merged" if event.target_type.as_deref() == Some("MergeRequest") => gitlab_mrs += 1,
                 _ => gitlab_other += 1,
             }
         }
         
+        // Count GitLab commits separately for better statistics
+        let gitlab_commit_count = data.gitlab_events.iter()
+            .filter(|e| e.action_name == "committed" && e.target_type.as_deref() == Some("Commit"))
+            .count();
+        
         prompt.push_str(&format!(
             "**QUANTITATIVE SUMMARY:**\n\
             - Total Activities: {}\n\
-            - Git Commits: {} (across {} repos)\n\
-            - GitLab Events: {} ({}C/{}I/{}MR/{}O)\n\
+            - Local Git Commits: {} (across {} repos)\n\
+            - GitLab Commits: {} (remote repositories)\n\
+            - Total Commits: {} (local + remote)\n\
+            - Other GitLab Events: {} ({}I/{}MR/{}O)\n\
             - GitHub Events: {}\n\
             - Local Files: {}\n\
-            - Lines Changed: +{} -{}\n\
-            - Files Modified: {}\n\
+            - Lines Changed (local): +{} -{}\n\
+            - Files Modified (local): {}\n\
             - Daily Average: {:.1} activities/day\n\n",
             total_items,
             data.git_commits.len(),
             unique_repos.len(),
-            data.gitlab_events.len(),
-            gitlab_commits, gitlab_issues, gitlab_mrs, gitlab_other,
+            gitlab_commit_count,
+            data.git_commits.len() + gitlab_commit_count,
+            data.gitlab_events.len() - gitlab_commit_count,
+            gitlab_issues, gitlab_mrs, gitlab_other,
             data.github_events.len(),
             data.local_files.len(),
             total_insertions,
@@ -269,19 +305,42 @@ impl LlmClient {
             total_items as f64 / ((data.metadata.date_range_end - data.metadata.date_range_start).num_days() as f64 + 1.0)
         ));
         
-        // Add GitLab events summary
+        // Add GitLab events summary with special emphasis on commits
         if !data.gitlab_events.is_empty() {
-            prompt.push_str("**GITLAB ACTIVITY DETAILS:**\n");
-            for event in &data.gitlab_events {
-                prompt.push_str(&format!(
-                    "- {} ({}): {} [{}]\n",
-                    event.created_at.format("%Y-%m-%d"),
-                    event.action_name,
-                    event.details.as_deref().unwrap_or("No details"),
-                    event.project_name.as_deref().unwrap_or("Unknown project")
-                ));
+            let gitlab_commits: Vec<_> = data.gitlab_events.iter()
+                .filter(|e| e.action_name == "committed" && e.target_type.as_deref() == Some("Commit"))
+                .collect();
+            
+            if !gitlab_commits.is_empty() {
+                prompt.push_str("**GITLAB COMMITS:**\n");
+                for event in gitlab_commits {
+                    prompt.push_str(&format!(
+                        "- {} [{}]: {} [GitLab]\n",
+                        event.created_at.format("%Y-%m-%d"),
+                        event.author_name.as_deref().unwrap_or("Unknown"),
+                        event.target_title.as_deref().unwrap_or("No title")
+                    ));
+                }
+                prompt.push_str("\n");
             }
-            prompt.push_str("\n");
+            
+            let other_events: Vec<_> = data.gitlab_events.iter()
+                .filter(|e| !(e.action_name == "committed" && e.target_type.as_deref() == Some("Commit")))
+                .collect();
+            
+            if !other_events.is_empty() {
+                prompt.push_str("**OTHER GITLAB ACTIVITY:**\n");
+                for event in other_events {
+                    prompt.push_str(&format!(
+                        "- {} ({}): {} [{}]\n",
+                        event.created_at.format("%Y-%m-%d"),
+                        event.action_name,
+                        event.details.as_deref().unwrap_or("No details"),
+                        event.project_name.as_deref().unwrap_or("Unknown project")
+                    ));
+                }
+                prompt.push_str("\n");
+            }
         }
         
         // Add GitHub events summary
