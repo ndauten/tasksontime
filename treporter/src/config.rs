@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 pub struct Config {
     pub project: ProjectConfig,
     pub date_range: DateRangeConfig,
+    pub collection: CollectionConfig,
     pub data_sources: DataSourcesConfig,
     pub repositories: Vec<RepositoryConfig>,
     pub llm: LlmConfig,
@@ -20,6 +21,12 @@ pub struct ProjectConfig {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct DateRangeConfig {
     pub default_period: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct CollectionConfig {
+    pub include_diffs: bool,
+    pub max_diff_size: usize,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

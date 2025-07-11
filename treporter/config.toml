@@ -6,6 +6,13 @@ description = "Automated monthly project reporting tool"
 # Default to current month, can be overridden by CLI args
 default_period = "2025-01"
 
+# Global collection options
+[collection]
+# Include git diffs for commits and merge requests (provides detailed change information)
+include_diffs = true
+# Maximum diff size to include (in characters, 0 = no limit)
+max_diff_size = 50000
+
 [data_sources]
 # GitLab configuration
 [data_sources.gitlab]
