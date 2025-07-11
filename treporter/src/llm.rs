@@ -29,9 +29,15 @@ impl LLMClient {
             "You are a project manager creating a monthly technical report for the SPEAR project. \
             Based on the following data, generate a comprehensive report using the template provided. \
             Include quantitative metrics, progress summaries, and detailed commit information.\n\n\
+            IMPORTANT NOTES:\n\
+            - The data may contain duplicate commits from different sources (local git, GitLab, GitHub)\n\
+            - When analyzing commits, use the commit hash/SHA to identify duplicates and count each unique commit only once\n\
+            - Focus on unique contributions and avoid double-counting activities\n\
+            - Provide accurate metrics by deduplicating based on commit hashes, issue IDs, or other unique identifiers\n\n\
             DATA SUMMARY:\n{}\n\n\
             TEMPLATE:\n{}\n\n\
-            Generate a complete report with all placeholders filled in, including specific metrics and progress indicators.",
+            Generate a complete report with all placeholders filled in, including specific metrics and progress indicators. \
+            Ensure all counts and metrics reflect unique activities (no duplicates).",
             data_summary, template
         );
 
@@ -60,9 +66,15 @@ impl LLMClient {
             "You are preparing slides for a group presentation on the SPEAR project. \
             Based on the following data, generate presentation slides using the template provided. \
             Focus on progress metrics, key achievements, and quantitative summaries.\n\n\
+            IMPORTANT NOTES:\n\
+            - The data may contain duplicate commits from different sources (local git, GitLab, GitHub)\n\
+            - When analyzing commits, use the commit hash/SHA to identify duplicates and count each unique commit only once\n\
+            - Focus on unique contributions and avoid double-counting activities\n\
+            - Provide accurate metrics by deduplicating based on commit hashes, issue IDs, or other unique identifiers\n\n\
             DATA SUMMARY:\n{}\n\n\
             TEMPLATE:\n{}\n\n\
-            Generate complete slides with all placeholders filled in, emphasizing visual and quantitative metrics.",
+            Generate complete slides with all placeholders filled in, emphasizing visual and quantitative metrics. \
+            Ensure all counts and metrics reflect unique activities (no duplicates).",
             data_summary, template
         );
 
