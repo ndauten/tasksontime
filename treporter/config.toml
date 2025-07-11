@@ -38,19 +38,19 @@ include_wiki = true
 
 # GitHub configuration  
 [data_sources.github]
-enabled = true
+enabled = false
 token_env = "GITHUB_TOKEN"
 username_env = "GITHUB_USERNAME"
-organizations = ["spear-hq", "upenn-cpm"]
-
-# Repos:
-# bxsays/callsite-finder
-# serenitix/projects/spear/hyperspear
-# serenitix/projects/spear/cpm_if_tools
-# serenitix/projects/spear/spear-hq 
-# serenitix/projects/hyperplanes-project/hyperplanes
-# serenitix/contracts/upenn-cpm-hq
-# fierce-lab/objectencapsulation
+# List of specific repositories to collect from (format: owner/repo)
+repositories = [
+    "spear-hq/spear-hq",
+    "upenn-cpm/upenn-cpm-contract"
+]
+# What to collect from each repository
+include_issues = true
+include_pull_requests = true
+include_commits = true
+include_wiki = true
 
 # Local file sources - comprehensive documentation coverage
 [data_sources.local_files]

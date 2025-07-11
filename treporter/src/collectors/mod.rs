@@ -51,17 +51,25 @@ impl DataCollector {
 
         // Collect GitHub events
         if let Some(github_config) = &self.config.data_sources.github {
-            match GitHubCollector::new(github_config) {
-                Ok(collector) => {
-                    match collector.collect(start_date, end_date).await {
-                        Ok(events) => {
-                            data.github_raw = events;
-                            data.metadata.sources_used.push("GitHub".to_string());
-                        },
-                        Err(e) => println!("⚠️  Failed to collect GitHub data: {}", e),
-                    }
-                },
-                Err(e) => println!("⚠️  Failed to initialize GitHub collector: {}", e),
+            if github_config.enabled {
+                // Get GitHub repositories from config
+                let github_repos: Vec<_> = self.config.repositories.iter()
+                    .filter(|repo| repo.platform == "github")
+                    .cloned()
+                    .collect();
+                    
+                match GitHubCollector::new(github_config, github_repos) {
+                    Ok(collector) => {
+                        match collector.collect(github_config, &self.config.collection, start_date, end_date).await {
+                            Ok(events) => {
+                                data.github_raw = events;
+                                data.metadata.sources_used.push("GitHub".to_string());
+                            },
+                            Err(e) => println!("⚠️  Failed to collect GitHub data: {}", e),
+                        }
+                    },
+                    Err(e) => println!("⚠️  Failed to initialize GitHub collector: {}", e),
+                }
             }
         }
 

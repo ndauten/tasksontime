@@ -1,5 +1,4 @@
-use crate::config::GitHubConfig;
-use crate::types::GitHubEvent;
+use crate::config::{GitHubConfig, RepositoryConfig, CollectionConfig};
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use reqwest::Client;
@@ -9,12 +8,12 @@ use std::env;
 pub struct GitHubCollector {
     client: Client,
     token: String,
+    #[allow(dead_code)]
     username: String,
-    config: GitHubConfig,
 }
 
 impl GitHubCollector {
-    pub fn new(config: &GitHubConfig) -> Result<Self> {
+    pub fn new(config: &GitHubConfig, _repositories: Vec<RepositoryConfig>) -> Result<Self> {
         let token = env::var(&config.token_env)
             .map_err(|_| anyhow!("GitHub token not found in environment variable: {}", config.token_env))?;
         
@@ -25,29 +24,105 @@ impl GitHubCollector {
             client: Client::new(),
             token,
             username,
-            config: config.clone(),
         })
     }
 
-    pub async fn collect(&self, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<Value>> {
-        if !self.config.enabled {
-            return Ok(Vec::new());
+    pub async fn collect(&self, config: &GitHubConfig, collection_config: &CollectionConfig, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<Value>> {
+        println!("🔍 Collecting GitHub raw data from {} to {}", 
+                 start_date.format("%Y-%m-%d"), end_date.format("%Y-%m-%d"));
+        
+        // Get repositories based on configuration
+        let repositories = if let Some(repo_list) = &config.repositories {
+            self.get_specific_repositories(repo_list).await?
+        } else {
+            // Fallback to organization-based collection if no specific repositories
+            self.get_organization_repositories(config).await?
+        };
+        
+        println!("📋 Found {} GitHub repositories to collect from", repositories.len());
+        
+        // List all repositories so we can see what we're working with
+        for repo in &repositories {
+            let name = repo["name"].as_str().unwrap_or("Unknown");
+            let full_name = repo["full_name"].as_str().unwrap_or("Unknown");
+            println!("  📁 Repository: {} ({})", name, full_name);
         }
-
-        println!("🔍 Collecting GitHub raw data from {} to {}", start_date.format("%Y-%m-%d"), end_date.format("%Y-%m-%d"));
         
-        let events = self.get_user_events_raw(start_date, end_date).await?;
+        // Collect raw data from repositories
+        let mut all_raw_data = Vec::new();
         
-        println!("✅ Collected {} GitHub raw data items", events.len());
-        Ok(events)
+        // Get defaults for what to collect
+        let include_commits = config.include_commits.unwrap_or(true);
+        let include_issues = config.include_issues.unwrap_or(true);
+        let include_pull_requests = config.include_pull_requests.unwrap_or(true);
+        let _include_wiki = config.include_wiki.unwrap_or(true);
+        
+        for repo in repositories {
+            if let Some(repo_name) = repo["full_name"].as_str() {
+                let repo_display_name = repo["name"].as_str().unwrap_or("Unknown");
+                
+                println!("  🔍 Collecting from: {} ({})", repo_display_name, repo_name);
+                
+                // Collect commits
+                if include_commits {
+                    match self.get_repository_commits_raw(repo_name, &repo, collection_config, start_date, end_date).await {
+                        Ok(commits) => {
+                            if !commits.is_empty() {
+                                println!("    ✅ Found {} commits", commits.len());
+                            }
+                            all_raw_data.extend(commits);
+                        },
+                        Err(e) => {
+                            println!("    ⚠️  Failed to get commits: {}", e);
+                        }
+                    }
+                }
+                
+                // Collect issues
+                if include_issues {
+                    match self.get_repository_issues_raw(repo_name, &repo, start_date, end_date).await {
+                        Ok(issues) => {
+                            if !issues.is_empty() {
+                                println!("    ✅ Found {} issues", issues.len());
+                            }
+                            all_raw_data.extend(issues);
+                        },
+                        Err(e) => {
+                            println!("    ⚠️  Failed to get issues: {}", e);
+                        }
+                    }
+                }
+                
+                // Collect pull requests
+                if include_pull_requests {
+                    match self.get_repository_pull_requests_raw(repo_name, &repo, collection_config, start_date, end_date).await {
+                        Ok(prs) => {
+                            if !prs.is_empty() {
+                                println!("    ✅ Found {} pull requests", prs.len());
+                            }
+                            all_raw_data.extend(prs);
+                        },
+                        Err(e) => {
+                            println!("    ⚠️  Failed to get pull requests: {}", e);
+                        }
+                    }
+                }
+                
+                // TODO: Collect wiki if include_wiki is true
+            }
+        }
+        
+        println!("✅ Collected {} total GitHub raw data items", all_raw_data.len());
+        Ok(all_raw_data)
     }
 
-    async fn get_user_events_raw(&self, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<Value>> {
-        let mut events = Vec::new();
-        let mut page = 1;
-
-        loop {
-            let url = format!("https://api.github.com/users/{}/events?page={}&per_page=100", self.username, page);
+    async fn get_specific_repositories(&self, repo_paths: &[String]) -> Result<Vec<Value>> {
+        let mut repos = Vec::new();
+        
+        for repo_path in repo_paths {
+            println!("  🔍 Looking for repository: {}", repo_path);
+            
+            let url = format!("https://api.github.com/repos/{}", repo_path);
             
             let resp = self.client
                 .get(&url)
@@ -56,107 +131,321 @@ impl GitHubCollector {
                 .header("Accept", "application/vnd.github+json")
                 .send()
                 .await?;
-
-            if resp.status() == reqwest::StatusCode::FORBIDDEN {
-                println!("⚠️  GitHub API rate limit reached");
-                break;
+                
+            if resp.status().is_success() {
+                let repo = resp.json::<Value>().await?;
+                repos.push(repo);
+                println!("    ✅ Found: {}", repo_path);
+            } else {
+                println!("    ⚠️  Repository not found or no access: {}", repo_path);
             }
+        }
+        
+        Ok(repos)
+    }
 
-            let event_list = resp.json::<Vec<Value>>().await?;
-
-            if event_list.is_empty() {
-                break;
-            }
-
-            for mut event_json in event_list {
-                // Parse the created_at to filter by date range
-                if let Some(created_at_str) = event_json["created_at"].as_str() {
-                    if let Ok(created_at) = DateTime::parse_from_rfc3339(created_at_str) {
-                        let event_date = created_at.with_timezone(&Utc);
+    async fn get_organization_repositories(&self, config: &GitHubConfig) -> Result<Vec<Value>> {
+        let mut all_repos = Vec::new();
+        
+        if let Some(organizations) = &config.organizations {
+            for org in organizations {
+                println!("  🔍 Getting repositories for organization: {}", org);
+                
+                let mut page = 1;
+                loop {
+                    let url = format!("https://api.github.com/orgs/{}/repos?page={}&per_page=100", org, page);
+                    
+                    let resp = self.client
+                        .get(&url)
+                        .header("Authorization", format!("Bearer {}", self.token))
+                        .header("User-Agent", "treporter/1.0")
+                        .header("Accept", "application/vnd.github+json")
+                        .send()
+                        .await?;
                         
-                        if event_date >= start_date && event_date <= end_date {
-                            // Add metadata about the source
-                            if let Some(event_obj) = event_json.as_object_mut() {
-                                event_obj.insert("_source_type".to_string(), serde_json::Value::String("github_event".to_string()));
+                    if !resp.status().is_success() {
+                        break;
+                    }
+                    
+                    let repos = resp.json::<Vec<Value>>().await?;
+                    
+                    if repos.is_empty() {
+                        break;
+                    }
+                    
+                    all_repos.extend(repos);
+                    page += 1;
+                    
+                    if page > 20 { // Safety limit
+                        break;
+                    }
+                }
+            }
+        }
+        
+        Ok(all_repos)
+    }
+
+    async fn get_repository_commits_raw(&self, repo_name: &str, repo_info: &Value, collection_config: &CollectionConfig, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<Value>> {
+        let mut commits = Vec::new();
+        let mut page = 1;
+        
+        loop {
+            let url = format!(
+                "https://api.github.com/repos/{}/commits?page={}&per_page=100&since={}&until={}",
+                repo_name, page,
+                start_date.format("%Y-%m-%dT%H:%M:%SZ"),
+                end_date.format("%Y-%m-%dT%H:%M:%SZ")
+            );
+            
+            let resp = self.client
+                .get(&url)
+                .header("Authorization", format!("Bearer {}", self.token))
+                .header("User-Agent", "treporter/1.0")
+                .header("Accept", "application/vnd.github+json")
+                .send()
+                .await?;
+                
+            if !resp.status().is_success() {
+                break;
+            }
+            
+            let commit_data = resp.json::<Vec<Value>>().await?;
+            
+            if commit_data.is_empty() {
+                break;
+            }
+            
+            for mut commit_json in commit_data {
+                // Extract commit SHA before modifying the object
+                let commit_sha = commit_json["sha"].as_str().map(|s| s.to_string());
+                
+                // Add metadata about the source repository
+                if let Some(commit_obj) = commit_json.as_object_mut() {
+                    commit_obj.insert("_source_type".to_string(), serde_json::Value::String("github_commit".to_string()));
+                    commit_obj.insert("_repo_name".to_string(), serde_json::Value::String(repo_info["name"].as_str().unwrap_or("Unknown").to_string()));
+                    commit_obj.insert("_repo_full_name".to_string(), serde_json::Value::String(repo_info["full_name"].as_str().unwrap_or("Unknown").to_string()));
+                    
+                    // Fetch diff if enabled
+                    if collection_config.include_diffs {
+                        if let Some(commit_sha_str) = commit_sha {
+                            match self.get_commit_diff(repo_name, &commit_sha_str, collection_config.max_diff_size).await {
+                                Ok(diff) => {
+                                    commit_obj.insert("_diff".to_string(), serde_json::Value::String(diff));
+                                },
+                                Err(e) => {
+                                    println!("    ⚠️  Failed to get diff for commit {}: {}", &commit_sha_str[0..8], e);
+                                    commit_obj.insert("_diff_error".to_string(), serde_json::Value::String(e.to_string()));
+                                }
                             }
-                            events.push(event_json);
-                        } else if event_date < start_date {
-                            // Events are returned in chronological order (newest first)
-                            // If we hit an event older than our start date, we can stop
-                            return Ok(events);
+                        }
+                    }
+                }
+                commits.push(commit_json);
+            }
+            
+            page += 1;
+            if page > 5 { // Safety limit for commits
+                break;
+            }
+        }
+        
+        Ok(commits)
+    }
+
+    async fn get_repository_issues_raw(&self, repo_name: &str, repo_info: &Value, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<Value>> {
+        let mut issues = Vec::new();
+        let mut page = 1;
+        
+        loop {
+            let url = format!(
+                "https://api.github.com/repos/{}/issues?page={}&per_page=100&state=all&since={}",
+                repo_name, page,
+                start_date.format("%Y-%m-%dT%H:%M:%SZ")
+            );
+            
+            let resp = self.client
+                .get(&url)
+                .header("Authorization", format!("Bearer {}", self.token))
+                .header("User-Agent", "treporter/1.0")
+                .header("Accept", "application/vnd.github+json")
+                .send()
+                .await?;
+                
+            if !resp.status().is_success() {
+                break;
+            }
+            
+            let issue_data = resp.json::<Vec<Value>>().await?;
+            
+            if issue_data.is_empty() {
+                break;
+            }
+            
+            for mut issue_json in issue_data {
+                // Filter out pull requests (GitHub API returns PRs as issues)
+                if issue_json["pull_request"].is_object() {
+                    continue;
+                }
+                
+                // Check if within date range
+                if let Some(created_at_str) = issue_json["created_at"].as_str() {
+                    if let Ok(created_at) = DateTime::parse_from_rfc3339(created_at_str) {
+                        let issue_date = created_at.with_timezone(&Utc);
+                        
+                        if issue_date >= start_date && issue_date <= end_date {
+                            // Add metadata about the source repository
+                            if let Some(issue_obj) = issue_json.as_object_mut() {
+                                issue_obj.insert("_source_type".to_string(), serde_json::Value::String("github_issue".to_string()));
+                                issue_obj.insert("_repo_name".to_string(), serde_json::Value::String(repo_info["name"].as_str().unwrap_or("Unknown").to_string()));
+                                issue_obj.insert("_repo_full_name".to_string(), serde_json::Value::String(repo_info["full_name"].as_str().unwrap_or("Unknown").to_string()));
+                            }
+                            issues.push(issue_json);
                         }
                     }
                 }
             }
-
+            
             page += 1;
-            if page > 10 { // Safety limit
+            if page > 5 { // Safety limit
                 break;
             }
         }
-
-        Ok(events)
+        
+        Ok(issues)
     }
 
-    fn parse_event(&self, event_json: Value) -> Result<GitHubEvent> {
-        let created_at_str = event_json["created_at"]
-            .as_str()
-            .ok_or_else(|| anyhow!("Missing created_at field"))?;
+    async fn get_repository_pull_requests_raw(&self, repo_name: &str, repo_info: &Value, collection_config: &CollectionConfig, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<Value>> {
+        let mut pull_requests = Vec::new();
+        let mut page = 1;
         
-        let created_at = DateTime::parse_from_rfc3339(created_at_str)?
-            .with_timezone(&Utc);
-
-        let event_type = event_json["type"].as_str().unwrap_or("").to_string();
-        let repo_name = event_json["repo"]["name"].as_str().map(|s| s.to_string());
-        let actor = event_json["actor"]["login"].as_str().map(|s| s.to_string());
-
-        let event = GitHubEvent {
-            id: event_json["id"].as_str().unwrap_or("").to_string(),
-            event_type: event_type.clone(),
-            repo_name: repo_name.clone(),
-            created_at,
-            actor,
-            payload: Some(event_json["payload"].clone()),
-            details: self.get_event_details(&event_type, &event_json["payload"], &repo_name),
-        };
-
-        Ok(event)
-    }
-
-    fn get_event_details(&self, event_type: &str, payload: &Value, repo_name: &Option<String>) -> Option<String> {
-        let repo = repo_name.as_deref().unwrap_or("unknown");
-        
-        match event_type {
-            "PushEvent" => {
-                let commit_count = payload["size"].as_u64().unwrap_or(0);
-                Some(format!("Pushed {} commit(s) to {}", commit_count, repo))
-            },
-            "CreateEvent" => {
-                let ref_type = payload["ref_type"].as_str().unwrap_or("unknown");
-                let ref_name = payload["ref"].as_str().unwrap_or("");
-                Some(format!("Created {} {} in {}", ref_type, ref_name, repo))
-            },
-            "IssuesEvent" => {
-                let action = payload["action"].as_str().unwrap_or("unknown");
-                let issue_title = payload["issue"]["title"].as_str().unwrap_or("Untitled");
-                Some(format!("{} issue '{}' in {}", action, issue_title, repo))
-            },
-            "PullRequestEvent" => {
-                let action = payload["action"].as_str().unwrap_or("unknown");
-                let pr_title = payload["pull_request"]["title"].as_str().unwrap_or("Untitled");
-                Some(format!("{} pull request '{}' in {}", action, pr_title, repo))
-            },
-            "IssueCommentEvent" => {
-                let issue_title = payload["issue"]["title"].as_str().unwrap_or("Untitled");
-                Some(format!("Commented on issue '{}' in {}", issue_title, repo))
-            },
-            "ForkEvent" => {
-                Some(format!("Forked repository {}", repo))
-            },
-            "WatchEvent" => {
-                Some(format!("Starred repository {}", repo))
-            },
-            _ => Some(format!("{} in {}", event_type, repo)),
+        loop {
+            let url = format!(
+                "https://api.github.com/repos/{}/pulls?page={}&per_page=100&state=all",
+                repo_name, page
+            );
+            
+            let resp = self.client
+                .get(&url)
+                .header("Authorization", format!("Bearer {}", self.token))
+                .header("User-Agent", "treporter/1.0")
+                .header("Accept", "application/vnd.github+json")
+                .send()
+                .await?;
+                
+            if !resp.status().is_success() {
+                break;
+            }
+            
+            let pr_data = resp.json::<Vec<Value>>().await?;
+            
+            if pr_data.is_empty() {
+                break;
+            }
+            
+            for mut pr_json in pr_data {
+                // Extract PR number before modifying the object
+                let pr_number = pr_json["number"].as_u64();
+                
+                // Check if within date range
+                if let Some(created_at_str) = pr_json["created_at"].as_str() {
+                    if let Ok(created_at) = DateTime::parse_from_rfc3339(created_at_str) {
+                        let pr_date = created_at.with_timezone(&Utc);
+                        
+                        if pr_date >= start_date && pr_date <= end_date {
+                            // Add metadata about the source repository
+                            if let Some(pr_obj) = pr_json.as_object_mut() {
+                                pr_obj.insert("_source_type".to_string(), serde_json::Value::String("github_pull_request".to_string()));
+                                pr_obj.insert("_repo_name".to_string(), serde_json::Value::String(repo_info["name"].as_str().unwrap_or("Unknown").to_string()));
+                                pr_obj.insert("_repo_full_name".to_string(), serde_json::Value::String(repo_info["full_name"].as_str().unwrap_or("Unknown").to_string()));
+                                
+                                // Fetch diff if enabled
+                                if collection_config.include_diffs {
+                                    if let Some(pr_num) = pr_number {
+                                        match self.get_pull_request_diff(repo_name, pr_num, collection_config.max_diff_size).await {
+                                            Ok(diff) => {
+                                                pr_obj.insert("_diff".to_string(), serde_json::Value::String(diff));
+                                            },
+                                            Err(e) => {
+                                                println!("    ⚠️  Failed to get diff for PR {}: {}", pr_num, e);
+                                                pr_obj.insert("_diff_error".to_string(), serde_json::Value::String(e.to_string()));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            pull_requests.push(pr_json);
+                        }
+                    }
+                }
+            }
+            
+            page += 1;
+            if page > 5 { // Safety limit
+                break;
+            }
         }
+        
+        Ok(pull_requests)
+    }
+
+    /// Fetch the diff for a specific commit
+    async fn get_commit_diff(&self, repo_name: &str, commit_sha: &str, max_diff_size: usize) -> Result<String> {
+        let url = format!(
+            "https://api.github.com/repos/{}/commits/{}",
+            repo_name, commit_sha
+        );
+        
+        let resp = self.client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", self.token))
+            .header("User-Agent", "treporter/1.0")
+            .header("Accept", "application/vnd.github.diff")
+            .send()
+            .await?;
+            
+        if !resp.status().is_success() {
+            return Err(anyhow!("Failed to fetch commit diff: HTTP {}", resp.status()));
+        }
+        
+        let mut diff_text = resp.text().await?;
+        
+        // Truncate if too large
+        if max_diff_size > 0 && diff_text.len() > max_diff_size {
+            diff_text.truncate(max_diff_size);
+            diff_text.push_str("\n\n[DIFF TRUNCATED - TOO LARGE]");
+        }
+        
+        Ok(diff_text)
+    }
+
+    /// Fetch the diff for a specific pull request
+    async fn get_pull_request_diff(&self, repo_name: &str, pr_number: u64, max_diff_size: usize) -> Result<String> {
+        let url = format!(
+            "https://api.github.com/repos/{}/pulls/{}",
+            repo_name, pr_number
+        );
+        
+        let resp = self.client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", self.token))
+            .header("User-Agent", "treporter/1.0")
+            .header("Accept", "application/vnd.github.diff")
+            .send()
+            .await?;
+            
+        if !resp.status().is_success() {
+            return Err(anyhow!("Failed to fetch pull request diff: HTTP {}", resp.status()));
+        }
+        
+        let mut diff_text = resp.text().await?;
+        
+        // Truncate if too large
+        if max_diff_size > 0 && diff_text.len() > max_diff_size {
+            diff_text.truncate(max_diff_size);
+            diff_text.push_str("\n\n[DIFF TRUNCATED - TOO LARGE]");
+        }
+        
+        Ok(diff_text)
     }
 }

@@ -54,7 +54,12 @@ pub struct GitHubConfig {
     pub enabled: bool,
     pub token_env: String,
     pub username_env: String,
-    pub organizations: Vec<String>,
+    pub organizations: Option<Vec<String>>,
+    pub repositories: Option<Vec<String>>,
+    pub include_issues: Option<bool>,
+    pub include_pull_requests: Option<bool>,
+    pub include_commits: Option<bool>,
+    pub include_wiki: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
