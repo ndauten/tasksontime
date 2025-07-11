@@ -38,13 +38,14 @@ include_wiki = true
 
 # GitHub configuration  
 [data_sources.github]
-enabled = false
+enabled = true
 token_env = "GITHUB_TOKEN"
 username_env = "GITHUB_USERNAME"
 # List of specific repositories to collect from (format: owner/repo)
 repositories = [
-    "spear-hq/spear-hq",
-    "upenn-cpm/upenn-cpm-contract"
+    "SEVER-PROTECT/CPM-Interchange-Format",
+    "SEVER-PROTECT/linux",
+    "Serenitix/cpm_if_tools",
 ]
 # What to collect from each repository
 include_issues = true
