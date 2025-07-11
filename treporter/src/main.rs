@@ -55,11 +55,11 @@ async fn main() -> Result<()> {
             let data = collector.collect(start_date, end_date).await?;
             
             println!("📊 Collection Results:");
-            println!("  GitLab events: {}", data.gitlab_events.len());
-            println!("  GitHub events: {}", data.github_events.len());
+            println!("  GitLab raw data: {}", data.gitlab_raw.len());
+            println!("  GitHub raw data: {}", data.github_raw.len());
             println!("  Local files: {}", data.local_files.len());
             println!("  Git commits: {}", data.git_commits.len());
-            println!("  Total items: {}", data.total_events());
+            println!("  Total items: {}", data.total_items());
         },
         
         Commands::Collect { ref output } => {
@@ -72,7 +72,7 @@ async fn main() -> Result<()> {
             
             data.save_to_file(output)?;
             println!("💾 Saved collected data to: {}", output);
-            println!("📊 Total items collected: {}", data.total_events());
+            println!("📊 Total items collected: {}", data.total_items());
         },
         
         Commands::MonthlyReport { ref data_file } => {

@@ -103,7 +103,7 @@ impl LocalFilesCollector {
                     if let Some(date) = self.extract_date_from_line(line) {
                         if date >= start_date && date <= end_date {
                             let entry = TimeBasedEntry {
-                                date,
+                                timestamp: date,
                                 content: self.extract_context_around_line(&lines, line_num, 3),
                                 entry_type: self.classify_entry_type(line),
                             };

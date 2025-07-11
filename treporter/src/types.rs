@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CollectedData {
-    pub gitlab_events: Vec<GitLabEvent>,
-    pub github_events: Vec<GitHubEvent>,
+    pub gitlab_raw: Vec<serde_json::Value>,
+    pub github_raw: Vec<serde_json::Value>,
     pub local_files: Vec<LocalFileData>,
     pub git_commits: Vec<GitCommitData>,
     pub metadata: CollectionMetadata,
@@ -61,29 +61,27 @@ pub struct ContentSnippet {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TimeBasedEntry {
-    pub date: DateTime<Utc>,
+    pub timestamp: DateTime<Utc>,
     pub content: String,
-    pub entry_type: String, // "daily_note", "task_update", "meeting_note", etc.
+    pub entry_type: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GitCommitData {
-    pub repository: String,
-    pub commit_hash: String,
-    pub message: String,
-    pub author: String,
+    pub hash: String,
+    pub author_name: String,
     pub author_email: String,
-    pub date: DateTime<Utc>,
+    pub message: String,
+    pub timestamp: DateTime<Utc>,
+    pub repo_path: String,
     pub files_changed: Vec<String>,
-    pub insertions: usize,
-    pub deletions: usize,
 }
 
-impl CollectedData {
-    pub fn new() -> Self {
-        Self {
-            gitlab_events: Vec::new(),
-            github_events: Vec::new(),
+impl Default for CollectedData {
+    fn default() -> Self {
+        CollectedData {
+            gitlab_raw: Vec::new(),
+            github_raw: Vec::new(),
             local_files: Vec::new(),
             git_commits: Vec::new(),
             metadata: CollectionMetadata {
@@ -94,22 +92,28 @@ impl CollectedData {
             },
         }
     }
+}
 
-    pub fn total_events(&self) -> usize {
-        self.gitlab_events.len() + 
-        self.github_events.len() + 
+impl CollectedData {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn total_items(&self) -> usize {
+        self.gitlab_raw.len() + 
+        self.github_raw.len() + 
         self.local_files.len() + 
         self.git_commits.len()
     }
 
-    pub fn save_to_file(&self, path: &str) -> anyhow::Result<()> {
-        let json = serde_json::to_string_pretty(self)?;
-        std::fs::write(path, json)?;
+    pub fn save_to_file(&self, file_path: &str) -> anyhow::Result<()> {
+        let content = serde_json::to_string_pretty(self)?;
+        std::fs::write(file_path, content)?;
         Ok(())
     }
 
-    pub fn load_from_file(path: &str) -> anyhow::Result<Self> {
-        let content = std::fs::read_to_string(path)?;
+    pub fn load_from_file(file_path: &str) -> anyhow::Result<Self> {
+        let content = std::fs::read_to_string(file_path)?;
         let data: CollectedData = serde_json::from_str(&content)?;
         Ok(data)
     }

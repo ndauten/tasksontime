@@ -29,20 +29,20 @@ impl GitHubCollector {
         })
     }
 
-    pub async fn collect(&self, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<GitHubEvent>> {
+    pub async fn collect(&self, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<Value>> {
         if !self.config.enabled {
             return Ok(Vec::new());
         }
 
-        println!("🔍 Collecting GitHub events from {} to {}", start_date.format("%Y-%m-%d"), end_date.format("%Y-%m-%d"));
+        println!("🔍 Collecting GitHub raw data from {} to {}", start_date.format("%Y-%m-%d"), end_date.format("%Y-%m-%d"));
         
-        let events = self.get_user_events(start_date, end_date).await?;
+        let events = self.get_user_events_raw(start_date, end_date).await?;
         
-        println!("✅ Collected {} GitHub events", events.len());
+        println!("✅ Collected {} GitHub raw data items", events.len());
         Ok(events)
     }
 
-    async fn get_user_events(&self, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<GitHubEvent>> {
+    async fn get_user_events_raw(&self, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<Value>> {
         let mut events = Vec::new();
         let mut page = 1;
 
@@ -68,15 +68,23 @@ impl GitHubCollector {
                 break;
             }
 
-            for event_json in event_list {
-                if let Ok(event) = self.parse_event(event_json) {
-                    // Filter by date range
-                    if event.created_at >= start_date && event.created_at <= end_date {
-                        events.push(event);
-                    } else if event.created_at < start_date {
-                        // Events are returned in chronological order (newest first)
-                        // If we hit an event older than our start date, we can stop
-                        return Ok(events);
+            for mut event_json in event_list {
+                // Parse the created_at to filter by date range
+                if let Some(created_at_str) = event_json["created_at"].as_str() {
+                    if let Ok(created_at) = DateTime::parse_from_rfc3339(created_at_str) {
+                        let event_date = created_at.with_timezone(&Utc);
+                        
+                        if event_date >= start_date && event_date <= end_date {
+                            // Add metadata about the source
+                            if let Some(event_obj) = event_json.as_object_mut() {
+                                event_obj.insert("_source_type".to_string(), serde_json::Value::String("github_event".to_string()));
+                            }
+                            events.push(event_json);
+                        } else if event_date < start_date {
+                            // Events are returned in chronological order (newest first)
+                            // If we hit an event older than our start date, we can stop
+                            return Ok(events);
+                        }
                     }
                 }
             }

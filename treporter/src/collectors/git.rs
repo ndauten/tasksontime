@@ -70,15 +70,13 @@ impl GitCollector {
             let stats = self.get_commit_stats(&repo, &commit)?;
             
             let commit_data = GitCommitData {
-                repository: repo_name.to_string(),
-                commit_hash: commit.id().to_string(),
-                message: commit.message().unwrap_or("").to_string(),
-                author: commit.author().name().unwrap_or("").to_string(),
+                hash: commit.id().to_string(),
+                author_name: commit.author().name().unwrap_or("").to_string(),
                 author_email: commit.author().email().unwrap_or("").to_string(),
-                date: commit_time,
+                message: commit.message().unwrap_or("").to_string(),
+                timestamp: commit_time,
+                repo_path: repo_name.to_string(),
                 files_changed: stats.files_changed,
-                insertions: stats.insertions,
-                deletions: stats.deletions,
             };
 
             commits.push(commit_data);
@@ -99,20 +97,6 @@ impl GitCollector {
 
         let diff = repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), None)?;
 
-        diff.foreach(
-            &mut |_delta, _progress| true,
-            None,
-            Some(&mut |_delta, _hunk| true),
-            Some(&mut |_delta, _hunk, line| {
-                match line.origin() {
-                    '+' => stats.insertions += 1,
-                    '-' => stats.deletions += 1,
-                    _ => {}
-                }
-                true
-            }),
-        )?;
-
         // Count files changed
         stats.files_changed = diff.deltas().map(|delta| {
             delta.new_file().path().unwrap_or(Path::new("")).to_string_lossy().to_string()
@@ -125,6 +109,4 @@ impl GitCollector {
 #[derive(Default)]
 struct CommitStats {
     files_changed: Vec<String>,
-    insertions: usize,
-    deletions: usize,
 }

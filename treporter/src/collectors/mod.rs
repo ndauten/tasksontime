@@ -39,7 +39,7 @@ impl DataCollector {
                 Ok(collector) => {
                     match collector.collect(gitlab_config, start_date, end_date).await {
                         Ok(events) => {
-                            data.gitlab_events = events;
+                            data.gitlab_raw = events;
                             data.metadata.sources_used.push("GitLab".to_string());
                         },
                         Err(e) => println!("⚠️  Failed to collect GitLab data: {}", e),
@@ -55,7 +55,7 @@ impl DataCollector {
                 Ok(collector) => {
                     match collector.collect(start_date, end_date).await {
                         Ok(events) => {
-                            data.github_events = events;
+                            data.github_raw = events;
                             data.metadata.sources_used.push("GitHub".to_string());
                         },
                         Err(e) => println!("⚠️  Failed to collect GitHub data: {}", e),

@@ -1,6 +1,6 @@
 use crate::config::Config;
 use crate::types::CollectedData;
-use crate::llm::LlmClient;
+use crate::llm::LLMClient;
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use std::fs;
@@ -8,12 +8,12 @@ use std::path::Path;
 
 pub struct ReportGenerator {
     config: Config,
-    llm_client: LlmClient,
+    llm_client: LLMClient,
 }
 
 impl ReportGenerator {
     pub fn new(config: Config) -> Result<Self> {
-        let llm_client = LlmClient::new(config.llm.clone())?;
+        let llm_client = LLMClient::new(config.clone());
         
         Ok(Self {
             config,
@@ -27,7 +27,7 @@ impl ReportGenerator {
         
         println!("🤖 Generating monthly report using LLM...");
         let report = self.llm_client
-            .generate_report(data, &template_content, "monthly_report")
+            .generate_monthly_report(data)
             .await?;
         
         let output_path = self.generate_output_path("monthly_report", &data.metadata.date_range_start)?;
@@ -43,7 +43,7 @@ impl ReportGenerator {
         
         println!("🤖 Generating group meeting slides using LLM...");
         let slides = self.llm_client
-            .generate_report(data, &template_content, "group_slides")
+            .generate_group_slides(data)
             .await?;
         
         let output_path = self.generate_output_path("group_slides", &data.metadata.date_range_start)?;

@@ -1,504 +1,493 @@
-use crate::config::LlmConfig;
+use crate::config::Config;
 use crate::types::CollectedData;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use reqwest::Client;
-use serde_json::{json, Value};
-use std::env;
+use serde_json::json;
 
-pub struct LlmClient {
+pub struct LLMClient {
     client: Client,
-    config: LlmConfig,
-    api_key: Option<String>,
-    fallback_mode: bool,
+    config: Config,
 }
 
-impl LlmClient {
-    pub fn new(config: LlmConfig) -> Result<Self> {
-        let (api_key, fallback_mode) = match env::var(&config.api_key_env) {
-            Ok(key) if !key.is_empty() => (Some(key), false),
-            _ => {
-                eprintln!("⚠️  API key not found in environment variable: {}", config.api_key_env);
-                eprintln!("🔄 Running in fallback mode - will generate template-based reports");
-                (None, true)
-            }
-        };
-
-        Ok(Self {
+impl LLMClient {
+    pub fn new(config: Config) -> Self {
+        Self {
             client: Client::new(),
             config,
-            api_key,
-            fallback_mode,
-        })
-    }
-
-    pub async fn generate_report(&self, data: &CollectedData, template: &str, report_type: &str) -> Result<String> {
-        if self.fallback_mode {
-            return self.generate_fallback_report(data, template, report_type);
-        }
-
-        let system_prompt = self.create_system_prompt(report_type);
-        let user_prompt = self.create_user_prompt(data, template);
-
-        match self.config.provider.as_str() {
-            "openai" => self.call_openai(&system_prompt, &user_prompt).await,
-            "anthropic" => self.call_anthropic(&system_prompt, &user_prompt).await,
-            _ => Err(anyhow!("Unsupported LLM provider: {}", self.config.provider)),
         }
     }
 
-    fn generate_fallback_report(&self, data: &CollectedData, template: &str, _report_type: &str) -> Result<String> {
+    pub async fn generate_monthly_report(&self, data: &CollectedData) -> Result<String> {
+        // Read the template
+        let template = std::fs::read_to_string("templates/monthly_report.md")
+            .unwrap_or_else(|_| self.default_monthly_template());
+
+        // Prepare data for LLM
+        let data_summary = self.prepare_data_summary(data);
+        
+        let prompt = format!(
+            "You are a project manager creating a monthly technical report for the SPEAR project. \
+            Based on the following data, generate a comprehensive report using the template provided. \
+            Include quantitative metrics, progress summaries, and detailed commit information.\n\n\
+            DATA SUMMARY:\n{}\n\n\
+            TEMPLATE:\n{}\n\n\
+            Generate a complete report with all placeholders filled in, including specific metrics and progress indicators.",
+            data_summary, template
+        );
+
+        // Call LLM API
+        match self.call_llm_api(&prompt).await {
+            Ok(response) => Ok(response),
+            Err(e) => {
+                println!("⚠️  LLM API failed: {}", e);
+                println!("🔄 Falling back to template-based report generation...");
+                let fallback_report = self.generate_fallback_report(data, &template);
+                println!("📝 Generated fallback report with {} characters", fallback_report.len());
+                Ok(fallback_report)
+            }
+        }
+    }
+
+    pub async fn generate_group_slides(&self, data: &CollectedData) -> Result<String> {
+        // Read the template
+        let template = std::fs::read_to_string("templates/group_slides.md")
+            .unwrap_or_else(|_| self.default_slides_template());
+
+        // Prepare data for LLM
+        let data_summary = self.prepare_data_summary(data);
+        
+        let prompt = format!(
+            "You are preparing slides for a group presentation on the SPEAR project. \
+            Based on the following data, generate presentation slides using the template provided. \
+            Focus on progress metrics, key achievements, and quantitative summaries.\n\n\
+            DATA SUMMARY:\n{}\n\n\
+            TEMPLATE:\n{}\n\n\
+            Generate complete slides with all placeholders filled in, emphasizing visual and quantitative metrics.",
+            data_summary, template
+        );
+
+        // Call LLM API
+        match self.call_llm_api(&prompt).await {
+            Ok(response) => Ok(response),
+            Err(e) => {
+                println!("⚠️  LLM API failed: {}", e);
+                println!("🔄 Falling back to template-based slides generation...");
+                Ok(self.generate_fallback_slides(data, &template))
+            }
+        }
+    }
+
+    fn prepare_data_summary(&self, data: &CollectedData) -> String {
+        let mut summary = String::new();
+        
+        // Basic metadata
+        summary.push_str(&format!(
+            "## Collection Metadata\n\
+            - Collection period: {} to {}\n\
+            - Data sources: {}\n\n",
+            data.metadata.date_range_start.format("%Y-%m-%d"),
+            data.metadata.date_range_end.format("%Y-%m-%d"),
+            data.metadata.sources_used.join(", ")
+        ));
+
+        // GitLab raw data - pass the actual JSON
+        if !data.gitlab_raw.is_empty() {
+            summary.push_str("## GitLab Raw Data\n");
+            summary.push_str(&format!("Total items: {}\n\n", data.gitlab_raw.len()));
+            for (i, item) in data.gitlab_raw.iter().enumerate() {
+                summary.push_str(&format!("GitLab Item {}:\n", i + 1));
+                summary.push_str(&serde_json::to_string_pretty(item).unwrap_or_else(|_| "Invalid JSON".to_string()));
+                summary.push_str("\n\n");
+            }
+        }
+
+        // GitHub raw data - pass the actual JSON
+        if !data.github_raw.is_empty() {
+            summary.push_str("## GitHub Raw Data\n");
+            summary.push_str(&format!("Total items: {}\n\n", data.github_raw.len()));
+            for (i, item) in data.github_raw.iter().enumerate() {
+                summary.push_str(&format!("GitHub Item {}:\n", i + 1));
+                summary.push_str(&serde_json::to_string_pretty(item).unwrap_or_else(|_| "Invalid JSON".to_string()));
+                summary.push_str("\n\n");
+            }
+        }
+
+        // Git commit details
+        if !data.git_commits.is_empty() {
+            summary.push_str("## Git Commits\n");
+            for commit in &data.git_commits {
+                summary.push_str(&format!(
+                    "- {} ({}): {} by {} on {}\n",
+                    &commit.hash[0..8],
+                    commit.repo_path,
+                    commit.message.lines().next().unwrap_or("No message"),
+                    commit.author_name,
+                    commit.timestamp.format("%Y-%m-%d")
+                ));
+            }
+            summary.push('\n');
+        }
+
+        // Local files summary
+        if !data.local_files.is_empty() {
+            summary.push_str("## Local Files\n");
+            summary.push_str(&format!("Total files: {}\n", data.local_files.len()));
+            for file in &data.local_files {
+                summary.push_str(&format!(
+                    "- {} (modified: {})\n",
+                    file.file_name,
+                    file.last_modified.format("%Y-%m-%d")
+                ));
+            }
+            summary.push('\n');
+        }
+
+        summary
+    }
+
+    fn generate_fallback_report(&self, data: &CollectedData, template: &str) -> String {
         let mut report = template.to_string();
         
-        // Replace template variables with actual data
+        // Parse GitLab raw data to extract detailed metrics
+        let mut gitlab_commits = 0;
+        let mut gitlab_issues = 0;
+        let mut gitlab_merge_requests = 0;
+        let mut gitlab_commit_details = Vec::new();
+        
+        for item in &data.gitlab_raw {
+            if let Some(action) = item.get("action_name").and_then(|v| v.as_str()) {
+                match action {
+                    "pushed" => {
+                        gitlab_commits += 1;
+                        if let (Some(author), Some(message), Some(date)) = (
+                            item.get("author_name").and_then(|v| v.as_str()),
+                            item.get("push_data").and_then(|p| p.get("commit_title")).and_then(|v| v.as_str()),
+                            item.get("created_at").and_then(|v| v.as_str()),
+                        ) {
+                            gitlab_commit_details.push(format!("- {} by {} on {}", message, author, date));
+                        }
+                    }
+                    "opened" | "closed" | "reopened" => {
+                        if item.get("target_type").and_then(|v| v.as_str()) == Some("Issue") {
+                            gitlab_issues += 1;
+                        } else if item.get("target_type").and_then(|v| v.as_str()) == Some("MergeRequest") {
+                            gitlab_merge_requests += 1;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        
+        // Basic replacements
         report = report.replace("{{project_name}}", "SPEAR Project");
         report = report.replace("{{report_period}}", &format!("{} to {}", 
             data.metadata.date_range_start.format("%B %Y"),
             data.metadata.date_range_end.format("%B %Y")));
         
-        // Generate comprehensive quantitative summaries
-        let total_items = data.gitlab_events.len() + data.github_events.len() + 
+        // Quantitative summary with actual GitLab data
+        let total_items = data.gitlab_raw.len() + data.github_raw.len() + 
                          data.local_files.len() + data.git_commits.len();
-        
-        // Count different types of GitLab activities
-        let mut gitlab_commits = 0;
-        let mut gitlab_issues = 0;
-        let mut gitlab_mrs = 0;
-        let mut gitlab_other = 0;
-        
-        for event in &data.gitlab_events {
-            match event.action_name.as_str() {
-                "committed" if event.target_type.as_deref() == Some("Commit") => gitlab_commits += 1,
-                "opened" | "closed" if event.target_type.as_deref() == Some("Issue") => gitlab_issues += 1,
-                "opened" | "closed" | "merged" if event.target_type.as_deref() == Some("MergeRequest") => gitlab_mrs += 1,
-                _ => gitlab_other += 1,
-            }
-        }
-        
-        // Calculate git commit statistics
-        let total_insertions: usize = data.git_commits.iter().map(|c| c.insertions).sum();
-        let total_deletions: usize = data.git_commits.iter().map(|c| c.deletions).sum();
-        let total_files_changed: usize = data.git_commits.iter().map(|c| c.files_changed.len()).sum();
-        
-        // Count unique repositories
-        let mut unique_repos = std::collections::HashSet::new();
-        for commit in &data.git_commits {
-            unique_repos.insert(&commit.repository);
-        }
         
         let activity_summary = format!(
-            "**Quantitative Summary for Reporting Period:**\n\n\
+            "**Progress Metrics for Reporting Period:**\n\n\
             **Total Activities Tracked: {}**\n\
             - 📝 {} local file updates\n\
-            - 🔗 {} local git commits across {} repositories\n\
-            - 🦊 {} GitLab commits (remote repositories)\n\
-            - 🦊 {} other GitLab events ({}I/{}MR/{}O)\n\
-            - 🐙 {} GitHub events\n\n\
-            **Development Metrics:**\n\
-            - **Total Commits:** {} (local + remote)\n\
-            - **Lines of Code (local):** +{} insertions, -{} deletions\n\
-            - **Files Modified (local):** {} files\n\
-            - **Active Local Repositories:** {}\n\
-            - **Daily Average:** {:.1} activities per day",
+            - 🔗 {} local git commits\n\
+            - 🦊 {} GitLab activities ({} commits, {} issues, {} MRs)\n\
+            - 🐙 {} GitHub activities\n\n\
+            **Development Summary:**\n\
+            - **Total GitLab Commits:** {}\n\
+            - **Total Local Commits:** {}\n\
+            - **Issues Activity:** {}\n\
+            - **Merge Requests:** {}\n\
+            - **Active Data Sources:** {}\n\
+            - **Collection Period:** {} to {}\n\n",
             total_items,
             data.local_files.len(),
             data.git_commits.len(),
-            unique_repos.len(),
+            data.gitlab_raw.len(),
             gitlab_commits,
-            data.gitlab_events.len() - gitlab_commits,
-            gitlab_issues, gitlab_mrs, gitlab_other,
-            data.github_events.len(),
-            data.git_commits.len() + gitlab_commits,
-            total_insertions,
-            total_deletions,
-            total_files_changed,
-            unique_repos.len(),
-            total_items as f64 / ((data.metadata.date_range_end - data.metadata.date_range_start).num_days() as f64 + 1.0)
+            gitlab_issues,
+            gitlab_merge_requests,
+            data.github_raw.len(),
+            gitlab_commits,
+            data.git_commits.len(),
+            gitlab_issues,
+            gitlab_merge_requests,
+            data.metadata.sources_used.len(),
+            data.metadata.date_range_start.format("%Y-%m-%d"),
+            data.metadata.date_range_end.format("%Y-%m-%d")
         );
-        
+
         report = report.replace("{{activity_summary}}", &activity_summary);
         
-        // Add recent commits with enhanced details (combining local git commits and GitLab commits)
-        let mut all_commits = Vec::new();
-        
-        // Add local git commits
-        for commit in &data.git_commits {
-            all_commits.push(format!("- **{}** [{}]: {} (+{} -{} lines in {} files) [Local Git]", 
-                commit.date.format("%Y-%m-%d"),
-                commit.author,
-                commit.message.lines().next().unwrap_or("No message").trim(),
-                commit.insertions,
-                commit.deletions,
-                commit.files_changed.len()));
-        }
+        // Detailed commit information
+        let mut commit_details = String::new();
         
         // Add GitLab commits
-        for event in &data.gitlab_events {
-            if event.action_name == "committed" && event.target_type.as_deref() == Some("Commit") {
-                let commit_hash = event.commit_hash.as_deref()
-                    .map(|h| &h[..8.min(h.len())]) // Take first 8 chars
-                    .unwrap_or("Unknown");
-                let project_name = event.project_name.as_deref().unwrap_or("Unknown");
-                
-                all_commits.push(format!("- **{}** [{}] ({}): {} [GitLab:{}]", 
-                    event.created_at.format("%Y-%m-%d"),
-                    event.author_name.as_deref().unwrap_or("Unknown"),
-                    commit_hash,
-                    event.target_title.as_deref().unwrap_or("No title"),
-                    project_name));
+        if !gitlab_commit_details.is_empty() {
+            commit_details.push_str("## GitLab Commits\n\n");
+            for detail in &gitlab_commit_details {
+                commit_details.push_str(&format!("{}\n", detail));
+            }
+            commit_details.push('\n');
+        }
+        
+        // Add local Git commits
+        if !data.git_commits.is_empty() {
+            commit_details.push_str("## Local Git Commits\n\n");
+            for commit in &data.git_commits {
+                commit_details.push_str(&format!(
+                    "**{}** ({})\n\
+                    - Author: {}\n\
+                    - Date: {}\n\
+                    - Repository: {}\n\
+                    - Files changed: {}\n\
+                    - Message: {}\n\n",
+                    &commit.hash[0..8],
+                    commit.hash,
+                    commit.author_name,
+                    commit.timestamp.format("%Y-%m-%d"),
+                    commit.repo_path,
+                    commit.files_changed.len(),
+                    commit.message.lines().next().unwrap_or("No message")
+                ));
             }
         }
+
+        report = report.replace("{{commit_details}}", &commit_details);
         
-        // Sort commits by date (newest first)
-        all_commits.sort_by(|a, b| {
-            let date_a = &a[3..13]; // Extract date from "- **YYYY-MM-DD**"
-            let date_b = &b[3..13];
-            date_b.cmp(date_a) // Reverse order for newest first
-        });
-        
-        if !all_commits.is_empty() {
-            let recent_commits = all_commits.into_iter()
-                .take(10) // Show more commits since we're combining sources
-                .collect::<Vec<_>>()
-                .join("\n");
-            report = report.replace("{{recent_commits}}", &recent_commits);
-        } else {
-            report = report.replace("{{recent_commits}}", "No commits found in the specified period");
-        }
-        
-        // Add file updates summary with enhanced details
-        if !data.local_files.is_empty() {
-            let mut file_updates = String::new();
-            for file in data.local_files.iter().take(10) {
-                file_updates.push_str(&format!("- **{}** ({} entries)\n", 
-                    file.file_name, 
-                    file.time_based_entries.len() + file.content_snippets.len()));
-            }
-            report = report.replace("{{file_updates}}", &file_updates);
-        } else {
-            report = report.replace("{{file_updates}}", "No file updates found in the specified period");
-        }
-        
-        // Add quantitative placeholder replacements
-        report = report.replace("{{gitlab_events_count}}", &data.gitlab_events.len().to_string());
-        report = report.replace("{{github_events_count}}", &data.github_events.len().to_string());
+        // Replace remaining placeholders
+        report = report.replace("{{gitlab_events_count}}", &data.gitlab_raw.len().to_string());
+        report = report.replace("{{github_events_count}}", &data.github_raw.len().to_string());
         report = report.replace("{{git_commits_count}}", &data.git_commits.len().to_string());
         report = report.replace("{{local_files_count}}", &data.local_files.len().to_string());
-        report = report.replace("{{total_insertions}}", &total_insertions.to_string());
-        report = report.replace("{{total_deletions}}", &total_deletions.to_string());
-        report = report.replace("{{files_changed_count}}", &total_files_changed.to_string());
-        report = report.replace("{{unique_repos_count}}", &unique_repos.len().to_string());
-        report = report.replace("{{generation_date}}", &chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC").to_string());
+        report = report.replace("{{total_items}}", &total_items.to_string());
+        report = report.replace("{{total_insertions}}", "0"); // Raw data doesn't have this
+        report = report.replace("{{total_deletions}}", "0"); // Raw data doesn't have this
+        report = report.replace("{{files_changed_count}}", &data.local_files.len().to_string());
+        report = report.replace("{{unique_repos_count}}", &data.metadata.sources_used.len().to_string());
         
-        Ok(report)
+        report
     }
 
-    fn create_system_prompt(&self, report_type: &str) -> String {
-        match report_type {
-            "monthly_report" => {
-                "You are an expert technical project manager tasked with creating a comprehensive monthly project report. 
-                 Based on the provided data from various sources (GitLab, GitHub, local files, git commits), 
-                 create a well-structured, professional report that highlights accomplishments, progress, 
-                 challenges, and next steps. Focus on meaningful insights rather than just listing activities.
-                 
-                 **CRITICAL: Include explicit quantitative metrics and analysis throughout the report:**
-                 - Count and summarize different types of activities (commits, issues, MRs, file updates)
-                 - Calculate development velocity metrics (lines of code, files changed, daily averages)
-                 - Identify trends and patterns in the data
-                 - Provide numerical context for all major accomplishments
-                 - Include a dedicated 'Progress Metrics' section with specific numbers
-                 
-                 The report should be suitable for stakeholders and project sponsors. Use clear, concise language
-                 and organize information logically. Always lead with quantitative summaries before diving into
-                 qualitative analysis. Make the data actionable by highlighting what the numbers mean for project progress.".to_string()
-            },
-            "group_slides" => {
-                "You are creating slides for a group meeting based on project activity data.
-                 Create content suitable for presentation slides that highlights key accomplishments,
-                 progress made, current blockers, and next steps. Be concise and focus on the most
-                 important information that would be relevant to a team meeting.
-                 
-                 **CRITICAL: Lead with quantitative metrics on every slide:**
-                 - Start with a 'By the Numbers' slide showing key metrics
-                 - Include specific counts for commits, issues, MRs, files changed
-                 - Show development velocity and activity trends
-                 - Use numbers to support every major point
-                 - Include progress indicators and completion rates where applicable
-                 
-                 Format the output as Marp markdown with appropriate slide breaks and formatting.
-                 Use bullet points and clear headings. Keep text minimal and impactful but always
-                 include the supporting numbers.".to_string()
-            },
-            _ => "Create a summary report based on the provided project activity data. Focus on quantitative metrics and measurable progress indicators.".to_string(),
-        }
-    }
-
-    fn create_user_prompt(&self, data: &CollectedData, template: &str) -> String {
-        let mut prompt = format!("Please create a report based on the following template and data:\n\n");
+    fn generate_fallback_slides(&self, data: &CollectedData, template: &str) -> String {
+        let mut slides = template.to_string();
         
-        prompt.push_str("TEMPLATE:\n");
-        prompt.push_str(template);
-        prompt.push_str("\n\n");
+        // Basic replacements
+        slides = slides.replace("{{project_name}}", "SPEAR Project");
+        slides = slides.replace("{{report_period}}", &format!("{} to {}", 
+            data.metadata.date_range_start.format("%B %Y"),
+            data.metadata.date_range_end.format("%B %Y")));
         
-        prompt.push_str("PROJECT ACTIVITY DATA:\n\n");
-        
-        // Add metadata with quantitative summary
-        prompt.push_str(&format!(
-            "**REPORTING PERIOD:** {} to {} ({} days)\n",
-            data.metadata.date_range_start.format("%Y-%m-%d"),
-            data.metadata.date_range_end.format("%Y-%m-%d"),
-            (data.metadata.date_range_end - data.metadata.date_range_start).num_days() + 1
-        ));
-        prompt.push_str(&format!("**DATA SOURCES:** {}\n\n", data.metadata.sources_used.join(", ")));
-        
-        // Add quantitative overview
-        let total_items = data.gitlab_events.len() + data.github_events.len() + 
+        // Quantitative summary for slides
+        let total_items = data.gitlab_raw.len() + data.github_raw.len() + 
                          data.local_files.len() + data.git_commits.len();
         
-        // Calculate git commit statistics
-        let total_insertions: usize = data.git_commits.iter().map(|c| c.insertions).sum();
-        let total_deletions: usize = data.git_commits.iter().map(|c| c.deletions).sum();
-        let total_files_changed: usize = data.git_commits.iter().map(|c| c.files_changed.len()).sum();
-        
-        // Count unique repositories
-        let mut unique_repos = std::collections::HashSet::new();
-        for commit in &data.git_commits {
-            unique_repos.insert(&commit.repository);
-        }
-        
-        // Count different types of GitLab activities
-        let mut gitlab_commits = 0;
-        let mut gitlab_issues = 0;
-        let mut gitlab_mrs = 0;
-        let mut gitlab_other = 0;
-        
-        for event in &data.gitlab_events {
-            match event.action_name.as_str() {
-                "committed" if event.target_type.as_deref() == Some("Commit") => gitlab_commits += 1,
-                "opened" | "closed" if event.target_type.as_deref() == Some("Issue") => gitlab_issues += 1,
-                "opened" | "closed" | "merged" if event.target_type.as_deref() == Some("MergeRequest") => gitlab_mrs += 1,
-                _ => gitlab_other += 1,
-            }
-        }
-        
-        // Count GitLab commits separately for better statistics
-        let gitlab_commit_count = data.gitlab_events.iter()
-            .filter(|e| e.action_name == "committed" && e.target_type.as_deref() == Some("Commit"))
-            .count();
-        
-        prompt.push_str(&format!(
-            "**QUANTITATIVE SUMMARY:**\n\
-            - Total Activities: {}\n\
-            - Local Git Commits: {} (across {} repos)\n\
-            - GitLab Commits: {} (remote repositories)\n\
-            - Total Commits: {} (local + remote)\n\
-            - Other GitLab Events: {} ({}I/{}MR/{}O)\n\
-            - GitHub Events: {}\n\
-            - Local Files: {}\n\
-            - Lines Changed (local): +{} -{}\n\
-            - Files Modified (local): {}\n\
-            - Daily Average: {:.1} activities/day\n\n",
+        let metrics_summary = format!(
+            "## Progress Metrics\n\n\
+            - **Total Activities:** {}\n\
+            - **Git Commits:** {}\n\
+            - **GitLab Activities:** {}\n\
+            - **GitHub Activities:** {}\n\
+            - **Local Files:** {}\n\
+            - **Data Sources:** {}\n\n",
             total_items,
             data.git_commits.len(),
-            unique_repos.len(),
-            gitlab_commit_count,
-            data.git_commits.len() + gitlab_commit_count,
-            data.gitlab_events.len() - gitlab_commit_count,
-            gitlab_issues, gitlab_mrs, gitlab_other,
-            data.github_events.len(),
+            data.gitlab_raw.len(),
+            data.github_raw.len(),
             data.local_files.len(),
-            total_insertions,
-            total_deletions,
-            total_files_changed,
-            total_items as f64 / ((data.metadata.date_range_end - data.metadata.date_range_start).num_days() as f64 + 1.0)
-        ));
+            data.metadata.sources_used.len()
+        );
+
+        slides = slides.replace("{{metrics_summary}}", &metrics_summary);
         
-        // Add GitLab events summary with special emphasis on commits
-        if !data.gitlab_events.is_empty() {
-            let gitlab_commits: Vec<_> = data.gitlab_events.iter()
-                .filter(|e| e.action_name == "committed" && e.target_type.as_deref() == Some("Commit"))
-                .collect();
-            
-            if !gitlab_commits.is_empty() {
-                prompt.push_str("**GITLAB COMMITS:**\n");
-                for event in gitlab_commits {
-                    let commit_hash = event.commit_hash.as_deref()
-                        .map(|h| &h[..8.min(h.len())]) // Take first 8 chars
-                        .unwrap_or("Unknown");
-                    let project_name = event.project_name.as_deref().unwrap_or("Unknown");
-                    
-                    prompt.push_str(&format!(
-                        "- {} [{}] ({}): {} [GitLab:{}]\n",
-                        event.created_at.format("%Y-%m-%d"),
-                        event.author_name.as_deref().unwrap_or("Unknown"),
-                        commit_hash,
-                        event.target_title.as_deref().unwrap_or("No title"),
-                        project_name
+        // Replace any remaining placeholders
+        slides = slides.replace("{{gitlab_events_count}}", &data.gitlab_raw.len().to_string());
+        slides = slides.replace("{{github_events_count}}", &data.github_raw.len().to_string());
+        slides = slides.replace("{{git_commits_count}}", &data.git_commits.len().to_string());
+        slides = slides.replace("{{local_files_count}}", &data.local_files.len().to_string());
+        slides = slides.replace("{{total_items}}", &total_items.to_string());
+        
+        slides
+    }
+
+    async fn call_llm_api(&self, prompt: &str) -> Result<String> {
+        println!("🔍 Attempting to call LLM API...");
+        
+        // Check API key
+        let api_key = match std::env::var(&self.config.llm.api_key_env) {
+            Ok(key) => {
+                if key.is_empty() {
+                    return Err(anyhow::anyhow!(
+                        "❌ API key environment variable '{}' is set but empty. Please set a valid API key.",
+                        self.config.llm.api_key_env
                     ));
                 }
-                prompt.push_str("\n");
+                println!("✅ API key found: {}...", &key[0..std::cmp::min(10, key.len())]);
+                key
+            },
+            Err(_) => {
+                return Err(anyhow::anyhow!(
+                    "❌ API key not found. Please set the '{}' environment variable with your {} API key.",
+                    self.config.llm.api_key_env,
+                    self.config.llm.provider.to_uppercase()
+                ));
             }
-            
-            let other_events: Vec<_> = data.gitlab_events.iter()
-                .filter(|e| {
-                    // Only include opened/closed issues and merge requests, exclude comments and other noise
-                    match e.action_name.as_str() {
-                        "opened" | "closed" | "merged" => {
-                            matches!(e.target_type.as_deref(), Some("Issue") | Some("MergeRequest"))
-                        },
-                        _ => false
-                    }
+        };
+        
+        let payload = match self.config.llm.provider.as_str() {
+            "openai" => {
+                json!({
+                    "model": self.config.llm.model,
+                    "messages": [
+                        {"role": "system", "content": "You are a helpful assistant that generates technical reports."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    "max_tokens": 4000,
+                    "temperature": 0.7
                 })
-                .collect();
+            },
+            "anthropic" => {
+                json!({
+                    "model": self.config.llm.model,
+                    "max_tokens": 4000,
+                    "messages": [
+                        {"role": "user", "content": prompt}
+                    ]
+                })
+            },
+            _ => return Err(anyhow::anyhow!("❌ Unsupported LLM provider: '{}'. Supported providers: openai, anthropic", self.config.llm.provider)),
+        };
+
+        let url = match self.config.llm.provider.as_str() {
+            "openai" => "https://api.openai.com/v1/chat/completions",
+            "anthropic" => "https://api.anthropic.com/v1/messages",
+            _ => return Err(anyhow::anyhow!("❌ Unsupported LLM provider: {}", self.config.llm.provider)),
+        };
+
+        let auth_header = match self.config.llm.provider.as_str() {
+            "openai" => format!("Bearer {}", api_key),
+            "anthropic" => api_key,
+            _ => return Err(anyhow::anyhow!("❌ Unsupported LLM provider: {}", self.config.llm.provider)),
+        };
+
+        let mut request = self.client.post(url)
+            .header("Content-Type", "application/json")
+            .json(&payload);
+
+        request = match self.config.llm.provider.as_str() {
+            "openai" => request.header("Authorization", auth_header),
+            "anthropic" => request
+                .header("x-api-key", auth_header)
+                .header("anthropic-version", "2023-06-01"),
+            _ => request,
+        };
+
+        println!("🌐 Sending request to {} API...", self.config.llm.provider);
+        let response = match request.send().await {
+            Ok(resp) => {
+                let status = resp.status();
+                if !status.is_success() {
+                    let error_text = resp.text().await.unwrap_or_else(|_| "Unable to read error response".to_string());
+                    return Err(anyhow::anyhow!(
+                        "❌ {} API request failed with status {}: {}",
+                        self.config.llm.provider.to_uppercase(),
+                        status,
+                        error_text
+                    ));
+                }
+                resp
+            },
+            Err(e) => {
+                return Err(anyhow::anyhow!(
+                    "❌ Failed to connect to {} API: {}. Check your internet connection.",
+                    self.config.llm.provider.to_uppercase(),
+                    e
+                ));
+            }
+        };
+
+        let response_json: serde_json::Value = match response.json().await {
+            Ok(json) => json,
+            Err(e) => {
+                return Err(anyhow::anyhow!(
+                    "❌ Failed to parse {} API response as JSON: {}",
+                    self.config.llm.provider.to_uppercase(),
+                    e
+                ));
+            }
+        };
+        
+        // Check for API errors in response
+        if let Some(error) = response_json.get("error") {
+            let error_message = error.get("message")
+                .and_then(|m| m.as_str())
+                .unwrap_or("Unknown error");
+            let error_type = error.get("type")
+                .and_then(|t| t.as_str())
+                .unwrap_or("unknown");
             
-            if !other_events.is_empty() {
-                prompt.push_str("**OTHER GITLAB ACTIVITY:**\n");
-                for event in other_events {
-                    prompt.push_str(&format!(
-                        "- {} ({}): {} [{}]\n",
-                        event.created_at.format("%Y-%m-%d"),
-                        event.action_name,
-                        event.details.as_deref().unwrap_or("No details"),
-                        event.project_name.as_deref().unwrap_or("Unknown project")
-                    ));
-                }
-                prompt.push_str("\n");
-            }
+            return Err(anyhow::anyhow!(
+                "❌ {} API error ({}): {}",
+                self.config.llm.provider.to_uppercase(),
+                error_type,
+                error_message
+            ));
         }
-        
-        // Add GitHub events summary
-        if !data.github_events.is_empty() {
-            prompt.push_str("**GITHUB ACTIVITY DETAILS:**\n");
-            for event in &data.github_events {
-                prompt.push_str(&format!(
-                    "- {} ({}): {} [{}]\n",
-                    event.created_at.format("%Y-%m-%d"),
-                    event.event_type,
-                    event.details.as_deref().unwrap_or("No details"),
-                    event.repo_name.as_deref().unwrap_or("Unknown repo")
-                ));
-            }
-            prompt.push_str("\n");
+
+        println!("✅ {} API request successful", self.config.llm.provider.to_uppercase());
+
+        let content = match self.config.llm.provider.as_str() {
+            "openai" => {
+                response_json["choices"][0]["message"]["content"]
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("❌ Invalid OpenAI API response: missing content field"))?
+                    .to_string()
+            },
+            "anthropic" => {
+                response_json["content"][0]["text"]
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("❌ Invalid Anthropic API response: missing content field"))?
+                    .to_string()
+            },
+            _ => return Err(anyhow::anyhow!("❌ Unsupported LLM provider: {}", self.config.llm.provider)),
+        };
+
+        if content.trim().is_empty() {
+            return Err(anyhow::anyhow!("❌ {} API returned empty content", self.config.llm.provider.to_uppercase()));
         }
-        
-        // Add Git commits summary
-        if !data.git_commits.is_empty() {
-            prompt.push_str("**GIT COMMITS DETAILS:**\n");
-            for commit in &data.git_commits {
-                prompt.push_str(&format!(
-                    "- {} [{}]: {} (+{} -{} changes in {} files)\n",
-                    commit.date.format("%Y-%m-%d"),
-                    commit.repository,
-                    commit.message.lines().next().unwrap_or("No message"),
-                    commit.insertions,
-                    commit.deletions,
-                    commit.files_changed.len()
-                ));
-            }
-            prompt.push_str("\n");
-        }
-        
-        // Add local files summary
-        if !data.local_files.is_empty() {
-            prompt.push_str("**LOCAL FILES & NOTES DETAILS:**\n");
-            for file in &data.local_files {
-                prompt.push_str(&format!("File: {} ({} time-based entries, {} content snippets)\n", 
-                    file.file_name, 
-                    file.time_based_entries.len(), 
-                    file.content_snippets.len()));
-                
-                for entry in &file.time_based_entries {
-                    prompt.push_str(&format!(
-                        "  - {} ({}): {}\n",
-                        entry.date.format("%Y-%m-%d"),
-                        entry.entry_type,
-                        entry.content.lines().next().unwrap_or("").trim()
-                    ));
-                }
-                
-                if !file.content_snippets.is_empty() && file.time_based_entries.is_empty() {
-                    for snippet in file.content_snippets.iter().take(3) {
-                        prompt.push_str(&format!("  - {}\n", snippet.content.trim()));
-                    }
-                }
-                prompt.push_str("\n");
-            }
-        }
-        
-        prompt.push_str("\nPlease create a comprehensive report based on this data and the provided template.");
-        prompt
+
+        println!("📝 Generated report with {} characters", content.len());
+        Ok(content)
     }
 
-    async fn call_openai(&self, system_prompt: &str, user_prompt: &str) -> Result<String> {
-        let payload = json!({
-            "model": self.config.model,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": system_prompt
-                },
-                {
-                    "role": "user", 
-                    "content": user_prompt
-                }
-            ],
-            "max_tokens": self.config.max_tokens,
-            "temperature": self.config.temperature
-        });
-
-        let response = self.client
-            .post("https://api.openai.com/v1/chat/completions")
-            .header("Authorization", format!("Bearer {}", self.api_key.as_ref().ok_or_else(|| anyhow!("API key not available"))?))
-            .header("Content-Type", "application/json")
-            .json(&payload)
-            .send()
-            .await?;
-
-        let response_json: Value = response.json().await?;
-        
-        if let Some(error) = response_json.get("error") {
-            return Err(anyhow!("OpenAI API error: {}", error));
-        }
-
-        let content = response_json["choices"][0]["message"]["content"]
-            .as_str()
-            .ok_or_else(|| anyhow!("Invalid response format from OpenAI"))?;
-
-        Ok(content.to_string())
+    fn default_monthly_template(&self) -> String {
+        "# {{project_name}} Monthly Report\n\n\
+        **Report Period:** {{report_period}}\n\n\
+        ## Progress Summary\n\n\
+        {{activity_summary}}\n\n\
+        ## Detailed Activities\n\n\
+        {{commit_details}}\n\n\
+        ## Quantitative Summary\n\n\
+        - Total GitLab events: {{gitlab_events_count}}\n\
+        - Total GitHub events: {{github_events_count}}\n\
+        - Total Git commits: {{git_commits_count}}\n\
+        - Total local files: {{local_files_count}}\n\
+        - **Total items tracked:** {{total_items}}\n".to_string()
     }
 
-    async fn call_anthropic(&self, system_prompt: &str, user_prompt: &str) -> Result<String> {
-        let payload = json!({
-            "model": self.config.model,
-            "max_tokens": self.config.max_tokens,
-            "temperature": self.config.temperature,
-            "system": system_prompt,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": user_prompt
-                }
-            ]
-        });
-
-        let response = self.client
-            .post("https://api.anthropic.com/v1/messages")
-            .header("Authorization", format!("Bearer {}", self.api_key.as_ref().ok_or_else(|| anyhow!("API key not available"))?))
-            .header("Content-Type", "application/json")
-            .header("anthropic-version", "2023-06-01")
-            .json(&payload)
-            .send()
-            .await?;
-
-        let response_json: Value = response.json().await?;
-        
-        if let Some(error) = response_json.get("error") {
-            return Err(anyhow!("Anthropic API error: {}", error));
-        }
-
-        let content = response_json["content"][0]["text"]
-            .as_str()
-            .ok_or_else(|| anyhow!("Invalid response format from Anthropic"))?;
-
-        Ok(content.to_string())
+    fn default_slides_template(&self) -> String {
+        "# {{project_name}} Progress Update\n\n\
+        **Period:** {{report_period}}\n\n\
+        ---\n\n\
+        ## Progress Metrics\n\n\
+        {{metrics_summary}}\n\n\
+        ---\n\n\
+        ## Summary\n\n\
+        - Total activities tracked: {{total_items}}\n\
+        - Active development across {{git_commits_count}} commits\n\
+        - Data collected from GitLab, GitHub, and local sources\n".to_string()
     }
 }

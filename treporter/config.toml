@@ -4,7 +4,7 @@ description = "Automated monthly project reporting tool"
 
 [date_range]
 # Default to current month, can be overridden by CLI args
-default_period = "current_month"
+default_period = "2025-01"
 
 [data_sources]
 # GitLab configuration
@@ -110,9 +110,9 @@ include_commits = true
 # LLM Configuration
 [llm]
 provider = "openai"  # or "anthropic", "local"
-model = "gpt-3.5-turbo"  # More accessible than gpt-4
+model = "gpt-4-turbo"  # Biggest model with 128K context
 api_key_env = "OPENAI_API_KEY"
-max_tokens = 2000  # Reduced for quota management
+max_tokens = 4000  # Increased for more comprehensive reports
 temperature = 0.3
 
 # Report templates
