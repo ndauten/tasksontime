@@ -1,4 +1,5 @@
 use crate::config::{GitLabConfig, RepositoryConfig, CollectionConfig};
+use crate::types::GitLabData;
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use reqwest::Client;
@@ -29,7 +30,7 @@ impl GitLabCollector {
         })
     }
 
-    pub async fn collect(&self, config: &GitLabConfig, collection_config: &CollectionConfig, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<Value>> {
+    pub async fn collect(&self, config: &GitLabConfig, collection_config: &CollectionConfig, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<GitLabData> {
         println!("🔍 Collecting GitLab raw data from {} to {}", 
                  start_date.format("%Y-%m-%d"), end_date.format("%Y-%m-%d"));
         
@@ -50,8 +51,8 @@ impl GitLabCollector {
             println!("  📁 Repository: {} ({})", name, path);
         }
         
-        // Collect raw data from repositories
-        let mut all_raw_data = Vec::new();
+        // Initialize organized data structure
+        let mut gitlab_data = GitLabData::default();
         
         // Get defaults for what to collect
         let include_commits = config.include_commits.unwrap_or(true);
@@ -74,7 +75,7 @@ impl GitLabCollector {
                             if !commits.is_empty() {
                                 println!("    ✅ Found {} commits", commits.len());
                             }
-                            all_raw_data.extend(commits);
+                            gitlab_data.commits.extend(commits);
                         },
                         Err(e) => {
                             println!("    ⚠️  Failed to get commits: {}", e);
@@ -89,7 +90,7 @@ impl GitLabCollector {
                             if !issues.is_empty() {
                                 println!("    ✅ Found {} issues", issues.len());
                             }
-                            all_raw_data.extend(issues);
+                            gitlab_data.issues.extend(issues);
                         },
                         Err(e) => {
                             println!("    ⚠️  Failed to get issues: {}", e);
@@ -104,7 +105,7 @@ impl GitLabCollector {
                             if !mrs.is_empty() {
                                 println!("    ✅ Found {} merge requests", mrs.len());
                             }
-                            all_raw_data.extend(mrs);
+                            gitlab_data.merge_requests.extend(mrs);
                         },
                         Err(e) => {
                             println!("    ⚠️  Failed to get merge requests: {}", e);
@@ -119,7 +120,7 @@ impl GitLabCollector {
                             if !comments.is_empty() {
                                 println!("    ✅ Found {} comments", comments.len());
                             }
-                            all_raw_data.extend(comments);
+                            gitlab_data.comments.extend(comments);
                         },
                         Err(e) => {
                             println!("    ⚠️  Failed to get comments: {}", e);
@@ -131,8 +132,8 @@ impl GitLabCollector {
             }
         }
         
-        println!("✅ Collected {} total GitLab raw data items", all_raw_data.len());
-        Ok(all_raw_data)
+        println!("✅ Collected {} total GitLab raw data items", gitlab_data.total_items());
+        Ok(gitlab_data)
     }
 
     async fn get_specific_repositories(&self, repo_paths: &[String]) -> Result<Vec<Value>> {

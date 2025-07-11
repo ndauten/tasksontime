@@ -1,4 +1,5 @@
 use crate::config::{GitHubConfig, RepositoryConfig, CollectionConfig};
+use crate::types::GitHubData;
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use reqwest::Client;
@@ -27,7 +28,7 @@ impl GitHubCollector {
         })
     }
 
-    pub async fn collect(&self, config: &GitHubConfig, collection_config: &CollectionConfig, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<Value>> {
+    pub async fn collect(&self, config: &GitHubConfig, collection_config: &CollectionConfig, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<GitHubData> {
         println!("🔍 Collecting GitHub raw data from {} to {}", 
                  start_date.format("%Y-%m-%d"), end_date.format("%Y-%m-%d"));
         
@@ -48,8 +49,8 @@ impl GitHubCollector {
             println!("  📁 Repository: {} ({})", name, full_name);
         }
         
-        // Collect raw data from repositories
-        let mut all_raw_data = Vec::new();
+        // Initialize organized data structure
+        let mut github_data = GitHubData::default();
         
         // Get defaults for what to collect
         let include_commits = config.include_commits.unwrap_or(true);
@@ -70,7 +71,7 @@ impl GitHubCollector {
                             if !commits.is_empty() {
                                 println!("    ✅ Found {} commits", commits.len());
                             }
-                            all_raw_data.extend(commits);
+                            github_data.commits.extend(commits);
                         },
                         Err(e) => {
                             println!("    ⚠️  Failed to get commits: {}", e);
@@ -85,7 +86,7 @@ impl GitHubCollector {
                             if !issues.is_empty() {
                                 println!("    ✅ Found {} issues", issues.len());
                             }
-                            all_raw_data.extend(issues);
+                            github_data.issues.extend(issues);
                         },
                         Err(e) => {
                             println!("    ⚠️  Failed to get issues: {}", e);
@@ -100,7 +101,7 @@ impl GitHubCollector {
                             if !prs.is_empty() {
                                 println!("    ✅ Found {} pull requests", prs.len());
                             }
-                            all_raw_data.extend(prs);
+                            github_data.pull_requests.extend(prs);
                         },
                         Err(e) => {
                             println!("    ⚠️  Failed to get pull requests: {}", e);
@@ -112,8 +113,8 @@ impl GitHubCollector {
             }
         }
         
-        println!("✅ Collected {} total GitHub raw data items", all_raw_data.len());
-        Ok(all_raw_data)
+        println!("✅ Collected {} total GitHub raw data items", github_data.total_items());
+        Ok(github_data)
     }
 
     async fn get_specific_repositories(&self, repo_paths: &[String]) -> Result<Vec<Value>> {

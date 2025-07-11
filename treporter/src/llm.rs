@@ -102,25 +102,87 @@ impl LLMClient {
             data.metadata.sources_used.join(", ")
         ));
 
-        // GitLab raw data - pass the actual JSON
-        if !data.gitlab_raw.is_empty() {
-            summary.push_str("## GitLab Raw Data\n");
-            summary.push_str(&format!("Total items: {}\n\n", data.gitlab_raw.len()));
-            for (i, item) in data.gitlab_raw.iter().enumerate() {
-                summary.push_str(&format!("GitLab Item {}:\n", i + 1));
-                summary.push_str(&serde_json::to_string_pretty(item).unwrap_or_else(|_| "Invalid JSON".to_string()));
-                summary.push_str("\n\n");
+        // GitLab data - pass the actual JSON organized by type
+        if data.gitlab.total_items() > 0 {
+            summary.push_str("## GitLab Data\n");
+            summary.push_str(&format!("Total items: {}\n\n", data.gitlab.total_items()));
+            
+            if !data.gitlab.commits.is_empty() {
+                summary.push_str("### GitLab Commits\n");
+                for (i, item) in data.gitlab.commits.iter().enumerate() {
+                    summary.push_str(&format!("GitLab Commit {}:\n", i + 1));
+                    summary.push_str(&serde_json::to_string_pretty(item).unwrap_or_else(|_| "Invalid JSON".to_string()));
+                    summary.push_str("\n\n");
+                }
+            }
+            
+            if !data.gitlab.issues.is_empty() {
+                summary.push_str("### GitLab Issues\n");
+                for (i, item) in data.gitlab.issues.iter().enumerate() {
+                    summary.push_str(&format!("GitLab Issue {}:\n", i + 1));
+                    summary.push_str(&serde_json::to_string_pretty(item).unwrap_or_else(|_| "Invalid JSON".to_string()));
+                    summary.push_str("\n\n");
+                }
+            }
+            
+            if !data.gitlab.merge_requests.is_empty() {
+                summary.push_str("### GitLab Merge Requests\n");
+                for (i, item) in data.gitlab.merge_requests.iter().enumerate() {
+                    summary.push_str(&format!("GitLab MR {}:\n", i + 1));
+                    summary.push_str(&serde_json::to_string_pretty(item).unwrap_or_else(|_| "Invalid JSON".to_string()));
+                    summary.push_str("\n\n");
+                }
+            }
+            
+            if !data.gitlab.comments.is_empty() {
+                summary.push_str("### GitLab Comments\n");
+                for (i, item) in data.gitlab.comments.iter().enumerate() {
+                    summary.push_str(&format!("GitLab Comment {}:\n", i + 1));
+                    summary.push_str(&serde_json::to_string_pretty(item).unwrap_or_else(|_| "Invalid JSON".to_string()));
+                    summary.push_str("\n\n");
+                }
             }
         }
 
-        // GitHub raw data - pass the actual JSON
-        if !data.github_raw.is_empty() {
-            summary.push_str("## GitHub Raw Data\n");
-            summary.push_str(&format!("Total items: {}\n\n", data.github_raw.len()));
-            for (i, item) in data.github_raw.iter().enumerate() {
-                summary.push_str(&format!("GitHub Item {}:\n", i + 1));
-                summary.push_str(&serde_json::to_string_pretty(item).unwrap_or_else(|_| "Invalid JSON".to_string()));
-                summary.push_str("\n\n");
+        // GitHub data - pass the actual JSON organized by type
+        if data.github.total_items() > 0 {
+            summary.push_str("## GitHub Data\n");
+            summary.push_str(&format!("Total items: {}\n\n", data.github.total_items()));
+            
+            if !data.github.commits.is_empty() {
+                summary.push_str("### GitHub Commits\n");
+                for (i, item) in data.github.commits.iter().enumerate() {
+                    summary.push_str(&format!("GitHub Commit {}:\n", i + 1));
+                    summary.push_str(&serde_json::to_string_pretty(item).unwrap_or_else(|_| "Invalid JSON".to_string()));
+                    summary.push_str("\n\n");
+                }
+            }
+            
+            if !data.github.issues.is_empty() {
+                summary.push_str("### GitHub Issues\n");
+                for (i, item) in data.github.issues.iter().enumerate() {
+                    summary.push_str(&format!("GitHub Issue {}:\n", i + 1));
+                    summary.push_str(&serde_json::to_string_pretty(item).unwrap_or_else(|_| "Invalid JSON".to_string()));
+                    summary.push_str("\n\n");
+                }
+            }
+            
+            if !data.github.pull_requests.is_empty() {
+                summary.push_str("### GitHub Pull Requests\n");
+                for (i, item) in data.github.pull_requests.iter().enumerate() {
+                    summary.push_str(&format!("GitHub PR {}:\n", i + 1));
+                    summary.push_str(&serde_json::to_string_pretty(item).unwrap_or_else(|_| "Invalid JSON".to_string()));
+                    summary.push_str("\n\n");
+                }
+            }
+            
+            if !data.github.comments.is_empty() {
+                summary.push_str("### GitHub Comments\n");
+                for (i, item) in data.github.comments.iter().enumerate() {
+                    summary.push_str(&format!("GitHub Comment {}:\n", i + 1));
+                    summary.push_str(&serde_json::to_string_pretty(item).unwrap_or_else(|_| "Invalid JSON".to_string()));
+                    summary.push_str("\n\n");
+                }
             }
         }
 
@@ -160,34 +222,26 @@ impl LLMClient {
     fn generate_fallback_report(&self, data: &CollectedData, template: &str) -> String {
         let mut report = template.to_string();
         
-        // Parse GitLab raw data to extract detailed metrics
-        let mut gitlab_commits = 0;
-        let mut gitlab_issues = 0;
-        let mut gitlab_merge_requests = 0;
+        // Parse GitLab organized data to extract detailed metrics
+        let gitlab_commits = data.gitlab.commits.len();
+        let gitlab_issues = data.gitlab.issues.len();
+        let gitlab_merge_requests = data.gitlab.merge_requests.len();
+        let gitlab_comments = data.gitlab.comments.len();
+        
+        let github_commits = data.github.commits.len();
+        let github_issues = data.github.issues.len();
+        let github_pull_requests = data.github.pull_requests.len();
+        let github_comments = data.github.comments.len();
+        
         let mut gitlab_commit_details = Vec::new();
         
-        for item in &data.gitlab_raw {
-            if let Some(action) = item.get("action_name").and_then(|v| v.as_str()) {
-                match action {
-                    "pushed" => {
-                        gitlab_commits += 1;
-                        if let (Some(author), Some(message), Some(date)) = (
-                            item.get("author_name").and_then(|v| v.as_str()),
-                            item.get("push_data").and_then(|p| p.get("commit_title")).and_then(|v| v.as_str()),
-                            item.get("created_at").and_then(|v| v.as_str()),
-                        ) {
-                            gitlab_commit_details.push(format!("- {} by {} on {}", message, author, date));
-                        }
-                    }
-                    "opened" | "closed" | "reopened" => {
-                        if item.get("target_type").and_then(|v| v.as_str()) == Some("Issue") {
-                            gitlab_issues += 1;
-                        } else if item.get("target_type").and_then(|v| v.as_str()) == Some("MergeRequest") {
-                            gitlab_merge_requests += 1;
-                        }
-                    }
-                    _ => {}
-                }
+        for item in &data.gitlab.commits {
+            if let (Some(author), Some(message), Some(date)) = (
+                item.get("author_name").and_then(|v| v.as_str()),
+                item.get("message").and_then(|v| v.as_str()),
+                item.get("created_at").and_then(|v| v.as_str()),
+            ) {
+                gitlab_commit_details.push(format!("- {} by {} on {}", message, author, date));
             }
         }
         
@@ -197,17 +251,16 @@ impl LLMClient {
             data.metadata.date_range_start.format("%B %Y"),
             data.metadata.date_range_end.format("%B %Y")));
         
-        // Quantitative summary with actual GitLab data
-        let total_items = data.gitlab_raw.len() + data.github_raw.len() + 
-                         data.local_files.len() + data.git_commits.len();
+        // Quantitative summary with organized data
+        let total_items = data.total_items();
         
         let activity_summary = format!(
             "**Progress Metrics for Reporting Period:**\n\n\
             **Total Activities Tracked: {}**\n\
             - 📝 {} local file updates\n\
             - 🔗 {} local git commits\n\
-            - 🦊 {} GitLab activities ({} commits, {} issues, {} MRs)\n\
-            - 🐙 {} GitHub activities\n\n\
+            - 🦊 {} GitLab activities ({} commits, {} issues, {} MRs, {} comments)\n\
+            - 🐙 {} GitHub activities ({} commits, {} issues, {} PRs, {} comments)\n\n\
             **Development Summary:**\n\
             - **Total GitLab Commits:** {}\n\
             - **Total Local Commits:** {}\n\
@@ -218,16 +271,21 @@ impl LLMClient {
             total_items,
             data.local_files.len(),
             data.git_commits.len(),
-            data.gitlab_raw.len(),
+            data.gitlab.total_items(),
             gitlab_commits,
             gitlab_issues,
             gitlab_merge_requests,
-            data.github_raw.len(),
+            gitlab_comments,
+            data.github.total_items(),
+            github_commits,
+            github_issues,
+            github_pull_requests,
+            github_comments,
             gitlab_commits,
             data.git_commits.len(),
             gitlab_issues,
             gitlab_merge_requests,
-            data.metadata.sources_used.len(),
+            data.metadata.sources_used.join(", "),
             data.metadata.date_range_start.format("%Y-%m-%d"),
             data.metadata.date_range_end.format("%Y-%m-%d")
         );
@@ -271,8 +329,8 @@ impl LLMClient {
         report = report.replace("{{commit_details}}", &commit_details);
         
         // Replace remaining placeholders
-        report = report.replace("{{gitlab_events_count}}", &data.gitlab_raw.len().to_string());
-        report = report.replace("{{github_events_count}}", &data.github_raw.len().to_string());
+        report = report.replace("{{gitlab_events_count}}", &data.gitlab.total_items().to_string());
+        report = report.replace("{{github_events_count}}", &data.github.total_items().to_string());
         report = report.replace("{{git_commits_count}}", &data.git_commits.len().to_string());
         report = report.replace("{{local_files_count}}", &data.local_files.len().to_string());
         report = report.replace("{{total_items}}", &total_items.to_string());
@@ -294,8 +352,7 @@ impl LLMClient {
             data.metadata.date_range_end.format("%B %Y")));
         
         // Quantitative summary for slides
-        let total_items = data.gitlab_raw.len() + data.github_raw.len() + 
-                         data.local_files.len() + data.git_commits.len();
+        let total_items = data.total_items();
         
         let metrics_summary = format!(
             "## Progress Metrics\n\n\
@@ -307,8 +364,8 @@ impl LLMClient {
             - **Data Sources:** {}\n\n",
             total_items,
             data.git_commits.len(),
-            data.gitlab_raw.len(),
-            data.github_raw.len(),
+            data.gitlab.total_items(),
+            data.github.total_items(),
             data.local_files.len(),
             data.metadata.sources_used.len()
         );
@@ -316,8 +373,8 @@ impl LLMClient {
         slides = slides.replace("{{metrics_summary}}", &metrics_summary);
         
         // Replace any remaining placeholders
-        slides = slides.replace("{{gitlab_events_count}}", &data.gitlab_raw.len().to_string());
-        slides = slides.replace("{{github_events_count}}", &data.github_raw.len().to_string());
+        slides = slides.replace("{{gitlab_events_count}}", &data.gitlab.total_items().to_string());
+        slides = slides.replace("{{github_events_count}}", &data.github.total_items().to_string());
         slides = slides.replace("{{git_commits_count}}", &data.git_commits.len().to_string());
         slides = slides.replace("{{local_files_count}}", &data.local_files.len().to_string());
         slides = slides.replace("{{total_items}}", &total_items.to_string());

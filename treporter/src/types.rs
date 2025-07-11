@@ -3,11 +3,27 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CollectedData {
-    pub gitlab_raw: Vec<serde_json::Value>,
-    pub github_raw: Vec<serde_json::Value>,
+    pub gitlab: GitLabData,
+    pub github: GitHubData,
     pub local_files: Vec<LocalFileData>,
     pub git_commits: Vec<GitCommitData>,
     pub metadata: CollectionMetadata,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GitLabData {
+    pub commits: Vec<serde_json::Value>,
+    pub merge_requests: Vec<serde_json::Value>,
+    pub issues: Vec<serde_json::Value>,
+    pub comments: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GitHubData {
+    pub commits: Vec<serde_json::Value>,
+    pub pull_requests: Vec<serde_json::Value>,
+    pub issues: Vec<serde_json::Value>,
+    pub comments: Vec<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -80,8 +96,8 @@ pub struct GitCommitData {
 impl Default for CollectedData {
     fn default() -> Self {
         CollectedData {
-            gitlab_raw: Vec::new(),
-            github_raw: Vec::new(),
+            gitlab: GitLabData::default(),
+            github: GitHubData::default(),
             local_files: Vec::new(),
             git_commits: Vec::new(),
             metadata: CollectionMetadata {
@@ -94,14 +110,36 @@ impl Default for CollectedData {
     }
 }
 
+impl Default for GitLabData {
+    fn default() -> Self {
+        GitLabData {
+            commits: Vec::new(),
+            merge_requests: Vec::new(),
+            issues: Vec::new(),
+            comments: Vec::new(),
+        }
+    }
+}
+
+impl Default for GitHubData {
+    fn default() -> Self {
+        GitHubData {
+            commits: Vec::new(),
+            pull_requests: Vec::new(),
+            issues: Vec::new(),
+            comments: Vec::new(),
+        }
+    }
+}
+
 impl CollectedData {
     pub fn new() -> Self {
         Self::default()
     }
 
     pub fn total_items(&self) -> usize {
-        self.gitlab_raw.len() + 
-        self.github_raw.len() + 
+        self.gitlab.total_items() + 
+        self.github.total_items() + 
         self.local_files.len() + 
         self.git_commits.len()
     }
@@ -116,5 +154,23 @@ impl CollectedData {
         let content = std::fs::read_to_string(file_path)?;
         let data: CollectedData = serde_json::from_str(&content)?;
         Ok(data)
+    }
+}
+
+impl GitLabData {
+    pub fn total_items(&self) -> usize {
+        self.commits.len() + 
+        self.merge_requests.len() + 
+        self.issues.len() + 
+        self.comments.len()
+    }
+}
+
+impl GitHubData {
+    pub fn total_items(&self) -> usize {
+        self.commits.len() + 
+        self.pull_requests.len() + 
+        self.issues.len() + 
+        self.comments.len()
     }
 }

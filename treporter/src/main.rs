@@ -55,8 +55,8 @@ async fn main() -> Result<()> {
             let data = collector.collect(start_date, end_date).await?;
             
             println!("📊 Collection Results:");
-            println!("  GitLab raw data: {}", data.gitlab_raw.len());
-            println!("  GitHub raw data: {}", data.github_raw.len());
+            println!("  GitLab raw data: {}", data.gitlab.total_items());
+            println!("  GitHub raw data: {}", data.github.total_items());
             println!("  Local files: {}", data.local_files.len());
             println!("  Git commits: {}", data.git_commits.len());
             println!("  Total items: {}", data.total_items());

@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use serde_json::Value;
 use treporter::collectors::gitlab::GitLabCollector;
 use treporter::config::{GitLabConfig, GitHubConfig, CollectionConfig, Config};
-use treporter::types::{CollectedData, CollectionMetadata};
+use treporter::types::{CollectedData, GitLabData, GitHubData, CollectionMetadata};
 use treporter::generators::ReportGenerator;
 
 // Test constants
@@ -74,6 +74,14 @@ fn count_data_types(data: &[Value]) -> (usize, usize, usize, usize) {
     }
     
     (commits, issues, merge_requests, comments)
+}
+
+fn count_gitlab_data_types(data: &GitLabData) -> (usize, usize, usize, usize) {
+    (data.commits.len(), data.issues.len(), data.merge_requests.len(), data.comments.len())
+}
+
+fn count_github_data_types(data: &GitHubData) -> (usize, usize, usize, usize) {
+    (data.commits.len(), data.issues.len(), data.pull_requests.len(), data.comments.len())
 }
 
 #[cfg(test)]
@@ -224,26 +232,23 @@ mod tests {
     
     #[test] 
     fn test_collected_data_structure() {
-        let data = CollectedData {
-            gitlab_raw: vec![
-                serde_json::json!({"_source_type": "gitlab_commit", "id": "abc123"}),
-                serde_json::json!({"_source_type": "gitlab_issue", "id": "456"}),
-            ],
-            github_raw: vec![
-                serde_json::json!({"_source_type": "github_commit", "id": "def789"}),
-            ],
-            git_commits: vec![],
-            local_files: vec![],
-            metadata: treporter::types::CollectionMetadata {
-                date_range_start: chrono::Utc::now(),
-                date_range_end: chrono::Utc::now(),
-                sources_used: vec!["gitlab".to_string(), "github".to_string()],
-                collection_time: chrono::Utc::now(),
-            },
-        };
+        let mut data = CollectedData::new();
         
-        assert_eq!(data.gitlab_raw.len(), 2);
-        assert_eq!(data.github_raw.len(), 1);
+        // Add some sample data to the organized structure
+        data.gitlab.commits.push(serde_json::json!({"_source_type": "gitlab_commit", "id": "abc123"}));
+        data.gitlab.issues.push(serde_json::json!({"_source_type": "gitlab_issue", "id": "456"}));
+        data.github.commits.push(serde_json::json!({"_source_type": "github_commit", "id": "def789"}));
+        
+        assert_eq!(data.gitlab.commits.len(), 1);
+        assert_eq!(data.gitlab.issues.len(), 1);
+        assert_eq!(data.gitlab.merge_requests.len(), 0);
+        assert_eq!(data.gitlab.comments.len(), 0);
+        
+        assert_eq!(data.github.commits.len(), 1);
+        assert_eq!(data.github.issues.len(), 0);
+        assert_eq!(data.github.pull_requests.len(), 0);
+        assert_eq!(data.github.comments.len(), 0);
+        
         assert_eq!(data.git_commits.len(), 0);
         assert_eq!(data.local_files.len(), 0);
         assert_eq!(data.total_items(), 3);
@@ -351,67 +356,68 @@ mod tests {
     
     #[test]
     fn test_collected_data_with_sample_data() {
-        let data = CollectedData {
-            gitlab_raw: vec![
-                serde_json::json!({
-                    "_source_type": "gitlab_commit",
-                    "id": "abc123",
-                    "message": "Test commit",
-                    "author_name": "Test User",
-                    "committed_date": "2025-07-01T10:00:00Z",
-                    "_project_name": "test-project",
-                    "_project_path": "test/project"
-                }),
-                serde_json::json!({
-                    "_source_type": "gitlab_issue",
-                    "id": 456,
-                    "title": "Test Issue",
-                    "state": "opened",
-                    "created_at": "2025-07-01T11:00:00Z",
-                    "_project_name": "test-project",
-                    "_project_path": "test/project"
-                }),
-            ],
-            github_raw: vec![
-                serde_json::json!({
-                    "_source_type": "github_commit",
-                    "sha": "def789",
-                    "message": "Another test commit",
-                    "author": {"name": "GitHub User"},
-                    "committed_date": "2025-07-01T12:00:00Z",
-                    "_repository_name": "test-repo",
-                    "_repository_full_name": "owner/test-repo"
-                }),
-            ],
-            git_commits: vec![
-                treporter::types::GitCommitData {
-                    hash: "ghi012".to_string(),
-                    message: "Local commit".to_string(),
-                    author_name: "Local User".to_string(),
-                    author_email: "local@example.com".to_string(),
-                    timestamp: chrono::Utc::now(),
-                    repo_path: "/path/to/repo".to_string(),
-                    files_changed: vec!["file1.rs".to_string()],
-                },
-            ],
-            local_files: vec![],
-            metadata: CollectionMetadata {
-                date_range_start: chrono::Utc::now(),
-                date_range_end: chrono::Utc::now(),
-                sources_used: vec!["gitlab".to_string(), "github".to_string(), "git".to_string()],
-                collection_time: chrono::Utc::now(),
-            },
+        let mut data = CollectedData::new();
+        
+        // Add GitLab data in organized structure
+        data.gitlab.commits.push(serde_json::json!({
+            "_source_type": "gitlab_commit",
+            "id": "abc123",
+            "message": "Test commit",
+            "author_name": "Test User",
+            "committed_date": "2025-07-01T10:00:00Z",
+            "_project_name": "test-project",
+            "_project_path": "test/project"
+        }));
+        
+        data.gitlab.issues.push(serde_json::json!({
+            "_source_type": "gitlab_issue",
+            "id": 456,
+            "title": "Test Issue",
+            "state": "opened",
+            "created_at": "2025-07-01T11:00:00Z",
+            "_project_name": "test-project",
+            "_project_path": "test/project"
+        }));
+        
+        // Add GitHub data in organized structure
+        data.github.commits.push(serde_json::json!({
+            "_source_type": "github_commit",
+            "sha": "def789",
+            "message": "Another test commit",
+            "author": {"name": "GitHub User"},
+            "committed_date": "2025-07-01T12:00:00Z",
+            "_repository_name": "test-repo",
+            "_repository_full_name": "owner/test-repo"
+        }));
+        
+        // Add local git commit
+        data.git_commits.push(treporter::types::GitCommitData {
+            hash: "ghi012".to_string(),
+            message: "Local commit".to_string(),
+            author_name: "Local User".to_string(),
+            author_email: "local@example.com".to_string(),
+            timestamp: chrono::Utc::now(),
+            repo_path: "/path/to/repo".to_string(),
+            files_changed: vec!["file1.rs".to_string()],
+        });
+        
+        // Set metadata
+        data.metadata = CollectionMetadata {
+            date_range_start: chrono::Utc::now(),
+            date_range_end: chrono::Utc::now(),
+            sources_used: vec!["gitlab".to_string(), "github".to_string(), "git".to_string()],
+            collection_time: chrono::Utc::now(),
         };
         
         assert_eq!(data.total_items(), 4);
         
-        let (commits, issues, merge_requests, comments) = count_data_types(&data.gitlab_raw);
-        assert_eq!(commits, 1);
-        assert_eq!(issues, 1);
-        assert_eq!(merge_requests, 0);
-        assert_eq!(comments, 0);
+        let (gl_commits, gl_issues, gl_mrs, gl_comments) = count_gitlab_data_types(&data.gitlab);
+        assert_eq!(gl_commits, 1);
+        assert_eq!(gl_issues, 1);
+        assert_eq!(gl_mrs, 0);
+        assert_eq!(gl_comments, 0);
         
-        let (gh_commits, gh_issues, gh_prs, gh_comments) = count_data_types(&data.github_raw);
+        let (gh_commits, gh_issues, gh_prs, gh_comments) = count_github_data_types(&data.github);
         assert_eq!(gh_commits, 1);
         assert_eq!(gh_issues, 0);
         assert_eq!(gh_prs, 0);

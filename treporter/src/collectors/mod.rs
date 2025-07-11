@@ -38,8 +38,8 @@ impl DataCollector {
             match GitLabCollector::new(gitlab_config, gitlab_repos) {
                 Ok(collector) => {
                     match collector.collect(gitlab_config, &self.config.collection, start_date, end_date).await {
-                        Ok(events) => {
-                            data.gitlab_raw = events;
+                        Ok(gitlab_data) => {
+                            data.gitlab = gitlab_data;
                             data.metadata.sources_used.push("GitLab".to_string());
                         },
                         Err(e) => println!("⚠️  Failed to collect GitLab data: {}", e),
@@ -61,8 +61,8 @@ impl DataCollector {
                 match GitHubCollector::new(github_config, github_repos) {
                     Ok(collector) => {
                         match collector.collect(github_config, &self.config.collection, start_date, end_date).await {
-                            Ok(events) => {
-                                data.github_raw = events;
+                            Ok(github_data) => {
+                                data.github = github_data;
                                 data.metadata.sources_used.push("GitHub".to_string());
                             },
                             Err(e) => println!("⚠️  Failed to collect GitHub data: {}", e),
