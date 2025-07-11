@@ -35,6 +35,7 @@ include_issues = true
 include_merge_requests = true
 include_commits = true
 include_wiki = true
+include_comments = true
 
 # GitHub configuration  
 [data_sources.github]
@@ -57,19 +58,19 @@ include_wiki = true
 enabled = true
 paths = [
     # SPEAR HQ documentation and activities
-    "/Users/ndd/haven/thebrain/projects/spear/spear-hq/activities/**/*.md",
-    "/Users/ndd/haven/thebrain/projects/spear/spear-hq/spear-hq.wiki/**/*.md",
-    "/Users/ndd/haven/thebrain/projects/spear/spear-hq/reports/**/*.md",
+    #"/Users/ndd/haven/thebrain/projects/spear/spear-hq/activities/**/*.md",
+    #"/Users/ndd/haven/thebrain/projects/spear/spear-hq/spear-hq.wiki/**/*.md",
+    #"/Users/ndd/haven/thebrain/projects/spear/spear-hq/reports/**/*.md",
     
     # UPenn CPM project documentation
-    "/Users/ndd/haven/thebrain/projects/spear/upenn-cpm-hq/project/**/*.md",
-    "/Users/ndd/haven/thebrain/projects/spear/upenn-cpm-hq/**/*.md",
+    #"/Users/ndd/haven/thebrain/projects/spear/upenn-cpm-hq/project/**/*.md",
+    #"/Users/ndd/haven/thebrain/projects/spear/upenn-cpm-hq/**/*.md",
     
     # CPM Interchange Format documentation
-    "/Users/ndd/haven/thebrain/projects/spear/CPM-Interchange-Format/**/*.md",
+    #"/Users/ndd/haven/thebrain/projects/spear/CPM-Interchange-Format/**/*.md",
     
     # Tasksontime project documentation
-    "/Users/ndd/haven/thebrain/projects/spear/tasksontime/**/*.md",
+    #"/Users/ndd/haven/thebrain/projects/spear/tasksontime/**/*.md",
 ]
 # File patterns to look for time-based notes
 time_patterns = [

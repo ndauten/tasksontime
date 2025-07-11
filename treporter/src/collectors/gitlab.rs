@@ -57,6 +57,7 @@ impl GitLabCollector {
         let include_commits = config.include_commits.unwrap_or(true);
         let include_issues = config.include_issues.unwrap_or(true);
         let include_merge_requests = config.include_merge_requests.unwrap_or(true);
+        let include_comments = config.include_comments.unwrap_or(true);
         let _include_wiki = config.include_wiki.unwrap_or(true);
         
         for repo in repositories {
@@ -107,6 +108,21 @@ impl GitLabCollector {
                         },
                         Err(e) => {
                             println!("    ⚠️  Failed to get merge requests: {}", e);
+                        }
+                    }
+                }
+                
+                // Collect comments (issue comments + merge request comments)
+                if include_comments {
+                    match self.get_project_comments_raw(project_id, &repo, start_date, end_date).await {
+                        Ok(comments) => {
+                            if !comments.is_empty() {
+                                println!("    ✅ Found {} comments", comments.len());
+                            }
+                            all_raw_data.extend(comments);
+                        },
+                        Err(e) => {
+                            println!("    ⚠️  Failed to get comments: {}", e);
                         }
                     }
                 }
@@ -413,6 +429,138 @@ impl GitLabCollector {
         Ok(merge_requests)
     }
 
+    async fn get_project_comments_raw(&self, project_id: u64, repo_info: &Value, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<Value>> {
+        let mut all_comments = Vec::new();
+        
+        // Get issue comments
+        match self.get_issue_comments_raw(project_id, repo_info, start_date, end_date).await {
+            Ok(comments) => all_comments.extend(comments),
+            Err(e) => println!("      ⚠️  Failed to get issue comments: {}", e),
+        }
+        
+        // Get merge request comments
+        match self.get_merge_request_comments_raw(project_id, repo_info, start_date, end_date).await {
+            Ok(comments) => all_comments.extend(comments),
+            Err(e) => println!("      ⚠️  Failed to get merge request comments: {}", e),
+        }
+        
+        Ok(all_comments)
+    }
+    
+    async fn get_issue_comments_raw(&self, project_id: u64, repo_info: &Value, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<Value>> {
+        let mut all_comments = Vec::new();
+        
+        // First get all issues to get their IIDs
+        let issues_url = format!("{}/api/v4/projects/{}/issues?per_page=100", self.base_url, project_id);
+        let resp = self.client
+            .get(&issues_url)
+            .header("PRIVATE-TOKEN", &self.token)
+            .send()
+            .await?;
+            
+        if !resp.status().is_success() {
+            return Ok(all_comments);
+        }
+        
+        let issues = resp.json::<Vec<Value>>().await?;
+        
+        // For each issue, get its comments
+        for issue in issues {
+            if let Some(issue_iid) = issue["iid"].as_u64() {
+                let comments_url = format!("{}/api/v4/projects/{}/issues/{}/notes", self.base_url, project_id, issue_iid);
+                
+                let resp = self.client
+                    .get(&comments_url)
+                    .header("PRIVATE-TOKEN", &self.token)
+                    .send()
+                    .await?;
+                    
+                if resp.status().is_success() {
+                    let comments = resp.json::<Vec<Value>>().await?;
+                    
+                    for mut comment in comments {
+                        // Check if comment is in date range
+                        if let Some(created_at_str) = comment["created_at"].as_str() {
+                            if let Ok(created_at) = DateTime::parse_from_rfc3339(created_at_str) {
+                                let created_at_utc = created_at.with_timezone(&Utc);
+                                if created_at_utc >= start_date && created_at_utc <= end_date {
+                                    // Add metadata
+                                    if let Some(comment_obj) = comment.as_object_mut() {
+                                        comment_obj.insert("_source_type".to_string(), serde_json::Value::String("gitlab_issue_comment".to_string()));
+                                        comment_obj.insert("_project_id".to_string(), serde_json::Value::Number(project_id.into()));
+                                        comment_obj.insert("_project_name".to_string(), serde_json::Value::String(repo_info["name"].as_str().unwrap_or("Unknown").to_string()));
+                                        comment_obj.insert("_project_path".to_string(), serde_json::Value::String(repo_info["path_with_namespace"].as_str().unwrap_or("Unknown").to_string()));
+                                        comment_obj.insert("_issue_iid".to_string(), serde_json::Value::Number(issue_iid.into()));
+                                    }
+                                    all_comments.push(comment);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        Ok(all_comments)
+    }
+    
+    async fn get_merge_request_comments_raw(&self, project_id: u64, repo_info: &Value, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<Value>> {
+        let mut all_comments = Vec::new();
+        
+        // First get all merge requests to get their IIDs
+        let mrs_url = format!("{}/api/v4/projects/{}/merge_requests?per_page=100", self.base_url, project_id);
+        let resp = self.client
+            .get(&mrs_url)
+            .header("PRIVATE-TOKEN", &self.token)
+            .send()
+            .await?;
+            
+        if !resp.status().is_success() {
+            return Ok(all_comments);
+        }
+        
+        let mrs = resp.json::<Vec<Value>>().await?;
+        
+        // For each merge request, get its comments
+        for mr in mrs {
+            if let Some(mr_iid) = mr["iid"].as_u64() {
+                let comments_url = format!("{}/api/v4/projects/{}/merge_requests/{}/notes", self.base_url, project_id, mr_iid);
+                
+                let resp = self.client
+                    .get(&comments_url)
+                    .header("PRIVATE-TOKEN", &self.token)
+                    .send()
+                    .await?;
+                    
+                if resp.status().is_success() {
+                    let comments = resp.json::<Vec<Value>>().await?;
+                    
+                    for mut comment in comments {
+                        // Check if comment is in date range
+                        if let Some(created_at_str) = comment["created_at"].as_str() {
+                            if let Ok(created_at) = DateTime::parse_from_rfc3339(created_at_str) {
+                                let created_at_utc = created_at.with_timezone(&Utc);
+                                if created_at_utc >= start_date && created_at_utc <= end_date {
+                                    // Add metadata
+                                    if let Some(comment_obj) = comment.as_object_mut() {
+                                        comment_obj.insert("_source_type".to_string(), serde_json::Value::String("gitlab_merge_request_comment".to_string()));
+                                        comment_obj.insert("_project_id".to_string(), serde_json::Value::Number(project_id.into()));
+                                        comment_obj.insert("_project_name".to_string(), serde_json::Value::String(repo_info["name"].as_str().unwrap_or("Unknown").to_string()));
+                                        comment_obj.insert("_project_path".to_string(), serde_json::Value::String(repo_info["path_with_namespace"].as_str().unwrap_or("Unknown").to_string()));
+                                        comment_obj.insert("_merge_request_iid".to_string(), serde_json::Value::Number(mr_iid.into()));
+                                    }
+                                    all_comments.push(comment);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        Ok(all_comments)
+    }
+    
     /// Fetch the diff for a specific commit
     async fn get_commit_diff(&self, project_id: u64, commit_id: &str, max_diff_size: usize) -> Result<String> {
         let url = format!(

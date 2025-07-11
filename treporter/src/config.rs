@@ -47,6 +47,7 @@ pub struct GitLabConfig {
     pub include_merge_requests: Option<bool>,
     pub include_commits: Option<bool>,
     pub include_wiki: Option<bool>,
+    pub include_comments: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
