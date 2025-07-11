@@ -15,11 +15,11 @@ pub struct Cli {
     
     /// Start date for data collection (YYYY-MM-DD)
     #[arg(long)]
-    pub since: Option<String>,
+    pub from: Option<String>,
     
     /// End date for data collection (YYYY-MM-DD)  
     #[arg(long)]
-    pub until: Option<String>,
+    pub to: Option<String>,
     
     /// Verbose output
     #[arg(short, long)]
@@ -65,13 +65,13 @@ pub enum Commands {
 
 impl Cli {
     pub fn parse_date_range(&self) -> anyhow::Result<(DateTime<Utc>, DateTime<Utc>)> {
-        let (start_date, end_date) = match (&self.since, &self.until) {
-            (Some(since), Some(until)) => {
-                let start = NaiveDate::parse_from_str(since, "%Y-%m-%d")?
+        let (start_date, end_date) = match (&self.from, &self.to) {
+            (Some(from), Some(to)) => {
+                let start = NaiveDate::parse_from_str(from, "%Y-%m-%d")?
                     .and_hms_opt(0, 0, 0)
                     .unwrap()
                     .and_utc();
-                let end = NaiveDate::parse_from_str(until, "%Y-%m-%d")?
+                let end = NaiveDate::parse_from_str(to, "%Y-%m-%d")?
                     .and_hms_opt(23, 59, 59)
                     .unwrap()
                     .and_utc();

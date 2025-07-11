@@ -44,7 +44,6 @@ username_env = "GITHUB_USERNAME"
 # List of specific repositories to collect from (format: owner/repo)
 repositories = [
     "SEVER-PROTECT/CPM-Interchange-Format",
-    "SEVER-PROTECT/linux",
     "Serenitix/cpm_if_tools",
 ]
 # What to collect from each repository
@@ -114,6 +113,12 @@ include_commits = true
 # platform = "local"
 # path = "/Users/ndd/haven/thebrain/projects/spear/upenn-cpm-hq"
 # include_commits = true
+
+[[repositories]]
+name = "spear-hq.wiki"
+platform = "local" 
+path = "/Users/ndd/haven/thebrain/projects/spear/spear-hq/spear-hq.wiki"
+include_commits = true
 
 # LLM Configuration
 [llm]
