@@ -27,7 +27,7 @@ impl ReportGenerator {
         
         println!("🤖 Generating monthly report using LLM...");
         let report = self.llm_client
-            .generate_monthly_report(data)
+            .generate_monthly_report(data, &template_content)
             .await?;
         
         let output_path = self.generate_output_path("monthly_report", &data.metadata.date_range_start)?;
