@@ -155,6 +155,43 @@ impl CollectedData {
         let data: CollectedData = serde_json::from_str(&content)?;
         Ok(data)
     }
+
+    pub fn merge(&mut self, other: CollectedData) {
+        // Merge GitLab data
+        self.gitlab.commits.extend(other.gitlab.commits);
+        self.gitlab.merge_requests.extend(other.gitlab.merge_requests);
+        self.gitlab.issues.extend(other.gitlab.issues);
+        self.gitlab.comments.extend(other.gitlab.comments);
+        
+        // Merge GitHub data
+        self.github.commits.extend(other.github.commits);
+        self.github.pull_requests.extend(other.github.pull_requests);
+        self.github.issues.extend(other.github.issues);
+        self.github.comments.extend(other.github.comments);
+        
+        // Merge local data
+        self.local_files.extend(other.local_files);
+        self.git_commits.extend(other.git_commits);
+        
+        // Update metadata
+        self.metadata.sources_used.push(format!("Merged from multiple sources at {}", 
+            chrono::Utc::now().format("%Y-%m-%d %H:%M:%S")));
+    }
+
+    pub fn load_and_merge_files(file_paths: &[String]) -> anyhow::Result<Self> {
+        if file_paths.is_empty() {
+            return Err(anyhow::anyhow!("No files provided for merging"));
+        }
+        
+        let mut merged_data = Self::load_from_file(&file_paths[0])?;
+        
+        for file_path in &file_paths[1..] {
+            let data = Self::load_from_file(file_path)?;
+            merged_data.merge(data);
+        }
+        
+        Ok(merged_data)
+    }
 }
 
 impl GitLabData {

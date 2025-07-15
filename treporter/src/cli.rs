@@ -40,6 +40,10 @@ pub enum Commands {
         /// Use previously collected data file
         #[arg(short, long)]
         data_file: Option<String>,
+        
+        /// Use multiple data files to merge
+        #[arg(long, num_args = 1.., value_delimiter = ' ')]
+        data_files: Vec<String>,
     },
     
     /// Generate group meeting slides

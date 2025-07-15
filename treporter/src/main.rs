@@ -4,6 +4,8 @@ mod collectors;
 mod llm;
 mod generators;
 mod cli;
+mod preprocessor;
+mod ollama;
 
 use anyhow::Result;
 use clap::Parser;
@@ -75,13 +77,23 @@ async fn main() -> Result<()> {
             println!("📊 Total items collected: {}", data.total_items());
         },
         
-        Commands::MonthlyReport { ref data_file } => {
-            let data = match data_file {
-                Some(file) => {
+        Commands::MonthlyReport { ref data_file, ref data_files } => {
+            let data = match (data_file, data_files.is_empty()) {
+                (Some(file), true) => {
                     println!("📂 Loading data from: {}", file);
                     CollectedData::load_from_file(file)?
                 },
-                None => {
+                (None, false) => {
+                    println!("📂 Loading and merging data from {} files...", data_files.len());
+                    for file in data_files {
+                        println!("  - {}", file);
+                    }
+                    CollectedData::load_and_merge_files(data_files)?
+                },
+                (Some(_), false) => {
+                    return Err(anyhow::anyhow!("Cannot specify both --data-file and --data-files"));
+                },
+                (None, true) => {
                     let (start_date, end_date) = cli.parse_date_range()?;
                     println!("🔍 Collecting fresh data...");
                     let collector = DataCollector::new(config.clone());
