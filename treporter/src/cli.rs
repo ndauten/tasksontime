@@ -60,6 +60,17 @@ pub enum Commands {
         data_file: Option<String>,
     },
     
+    /// Generate comprehensive architectural analysis report
+    ArchitecturalAnalysis {
+        /// Use previously collected data file
+        #[arg(short, long)]
+        data_file: Option<String>,
+        
+        /// Use multiple data files to merge
+        #[arg(long, num_args = 1.., value_delimiter = ' ')]
+        data_files: Vec<String>,
+    },
+    
     /// Show configuration information
     Config,
     

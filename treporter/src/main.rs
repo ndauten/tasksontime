@@ -147,6 +147,35 @@ async fn main() -> Result<()> {
                 println!("  📄 {}", path);
             }
         },
+        
+        Commands::ArchitecturalAnalysis { ref data_file, ref data_files } => {
+            let data = match (data_file, data_files.is_empty()) {
+                (Some(file), true) => {
+                    println!("📂 Loading data from: {}", file);
+                    CollectedData::load_from_file(file)?
+                },
+                (None, false) => {
+                    println!("📂 Loading and merging data from {} files...", data_files.len());
+                    for file in data_files {
+                        println!("  - {}", file);
+                    }
+                    CollectedData::load_and_merge_files(data_files)?
+                },
+                (Some(_), false) => {
+                    return Err(anyhow::anyhow!("Cannot specify both --data-file and --data-files"));
+                },
+                (None, true) => {
+                    let (start_date, end_date) = cli.parse_date_range()?;
+                    println!("🔍 Collecting fresh data...");
+                    let collector = DataCollector::new(config.clone());
+                    collector.collect(start_date, end_date).await?
+                }
+            };
+            
+            let generator = ReportGenerator::new(config)?;
+            let analysis_path = generator.generate_architectural_analysis(&data).await?;
+            println!("🏗️  Architectural analysis generated: {}", analysis_path);
+        },
     }
     
     Ok(())

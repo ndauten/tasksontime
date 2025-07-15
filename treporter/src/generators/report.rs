@@ -53,6 +53,19 @@ impl ReportGenerator {
         Ok(output_path)
     }
 
+    pub async fn generate_architectural_analysis(&self, data: &CollectedData) -> Result<String> {
+        println!("🏗️  Generating architectural analysis report using LLM...");
+        let analysis = self.llm_client
+            .generate_architectural_analysis(data)
+            .await?;
+        
+        let output_path = self.generate_output_path("architectural_analysis", &data.metadata.date_range_start)?;
+        fs::write(&output_path, &analysis)?;
+        
+        println!("✅ Architectural analysis saved to: {}", output_path);
+        Ok(output_path)
+    }
+
     pub async fn generate_all_reports(&self, data: &CollectedData) -> Result<Vec<String>> {
         let mut output_paths = Vec::new();
         
@@ -66,6 +79,12 @@ impl ReportGenerator {
         match self.generate_group_slides(data).await {
             Ok(path) => output_paths.push(path),
             Err(e) => println!("⚠️  Failed to generate group slides: {}", e),
+        }
+        
+        // Generate architectural analysis
+        match self.generate_architectural_analysis(data).await {
+            Ok(path) => output_paths.push(path),
+            Err(e) => println!("⚠️  Failed to generate architectural analysis: {}", e),
         }
         
         Ok(output_paths)

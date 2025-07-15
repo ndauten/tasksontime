@@ -854,39 +854,75 @@ impl LLMClient {
         }
     }
 
-    /// Default chunk template for when file is not found
-    fn default_chunk_template(&self) -> String {
-        "# Data Analysis\n\nAnalyze the following {{chunk_type}} data ({{item_count}} items):\n\n{{data_content}}\n\nProvide a summary with key metrics and insights.".to_string()
+    /// Generate comprehensive architectural analysis reports
+    pub async fn generate_architectural_analysis(&self, data: &CollectedData) -> Result<String> {
+        println!("🏗️  Starting comprehensive architectural analysis...");
+        
+        // Read the architectural analysis template
+        let template = match std::fs::read_to_string("templates/architectural-analysis.md") {
+            Ok(content) => content,
+            Err(_) => {
+                println!("⚠️  Architectural analysis template not found, using default");
+                self.default_architectural_template()
+            }
+        };
+
+        // Use the preprocessing system to structure the data
+        let preprocessor = DataPreprocessor::new();
+        let structured_content = preprocessor.preprocess_for_llm(data)?;
+        
+        println!("📊 Architectural analysis - preprocessed data: {} characters", structured_content.len());
+        
+        // Generate the analysis using template-based processing
+        self.generate_template_based_report(&structured_content, &template).await
     }
 
-    fn default_monthly_template(&self) -> String {
-        "# {{project_name}} Monthly Report\n\n\
-        **Report Period:** {{report_period}}\n\n\
-        ## Progress Summary\n\n\
-        {{activity_summary}}\n\n\
-        ## Detailed Activities\n\n\
-        {{commit_details}}\n\n\
-        ## Quantitative Summary\n\n\
-        - Total GitLab events: {{gitlab_events_count}}\n\
-        - Total GitHub events: {{github_events_count}}\n\
-        - Total Git commits: {{git_commits_count}}\n\
-        - Total local files: {{local_files_count}}\n\
-        - **Total items tracked:** {{total_items}}\n".to_string()
+    fn default_architectural_template(&self) -> String {
+        r#"# Comprehensive Architectural Analysis Report
+
+## Executive Summary
+
+{LLM: Analyze the provided project data and create a comprehensive executive summary that includes: overall project health and momentum, key architectural decisions made during this period, major technical milestones achieved, critical challenges identified and addressed, and strategic direction and focus areas. Provide specific metrics and concrete examples from the data.}
+
+## Technical Foundation Analysis
+
+{LLM: Analyze the technical foundation of the project based on commit patterns, file changes, and development activity. Address: core technologies and frameworks being used, build system and infrastructure choices, key architectural components, integration patterns and data flows, and development workflow and tooling. Reference specific files, commits, or code changes from the data.}
+
+## Codebase Evolution
+
+{LLM: Examine the codebase evolution during this period by analyzing: new modules or components added, existing components enhanced or refactored, deprecated or removed functionality, code quality improvements, performance optimizations, and security enhancements. Provide specific examples with file paths, commit messages, and impact assessment.}
+
+## Architecture Patterns and Decisions
+
+{LLM: Identify and analyze key architectural patterns and decisions evident in the development activity: design patterns implemented, system architecture choices, data structures and algorithms selected, API design and interface patterns, error handling and resilience strategies, and configuration management approaches. Support each pattern with specific code examples or implementation details from the data.}
+
+## Development Progress Metrics
+
+{LLM: Provide quantitative analysis of development progress: lines of code added/modified/deleted, number of files created/modified, commit frequency and distribution, issue resolution rates, feature completion metrics, code review statistics, and testing coverage improvements. Present metrics in a clear, analytical format.}
+
+## Technical Challenges and Solutions
+
+{LLM: Identify and analyze major technical challenges faced and how they were addressed: complex problems encountered, research and investigation approaches, alternative solutions considered, implementation strategies chosen, trade-offs and compromises made, and validation and testing methods. Provide detailed technical analysis with specific examples.}
+
+## Lessons Learned and Best Practices
+
+{LLM: Extract key lessons learned and best practices from this development period: effective development practices observed, pitfalls avoided or encountered, process improvements implemented, tool and technology insights, team collaboration insights, and documentation and knowledge sharing improvements. Focus on actionable insights for future development.}
+
+## Recommendations for Next Period
+
+{LLM: Based on the architectural analysis, provide specific recommendations for the next development period: priority areas for improvement, technical debt to address, new features or capabilities to implement, process optimizations to consider, tools or technologies to evaluate, and team skill development needs. Provide prioritized, actionable recommendations.}
+
+---
+
+**Report Generation Metadata:**
+- Analysis Period: {{date_range_start}} to {{date_range_end}}
+- Data Sources: {{sources_used}}
+- Total Activities Analyzed: {{total_items}}
+- Report Generated: {{generation_timestamp}}
+"#.to_string()
     }
 
-    fn default_slides_template(&self) -> String {
-        "# {{project_name}} Progress Update\n\n\
-        **Period:** {{report_period}}\n\n\
-        ---\n\n\
-        ## Progress Metrics\n\n\
-        {{metrics_summary}}\n\n\
-        ---\n\n\
-        ## Summary\n\n\
-        - Total activities tracked: {{total_items}}\n\
-        - Active development across {{git_commits_count}} commits\n\
-        - Data collected from GitLab, GitHub, and local sources\n".to_string()
-    }
-
+    // ...existing code...
     async fn call_llm_api(&self, prompt: &str) -> Result<String> {
         self.call_llm_api_with_retry(prompt, 3).await
     }
@@ -1197,5 +1233,22 @@ impl LLMClient {
         }
         
         prompts
+    }
+
+    fn default_slides_template(&self) -> String {
+        "# {{project_name}} Progress Update\n\n\
+        **Period:** {{report_period}}\n\n\
+        ---\n\n\
+        ## Progress Metrics\n\n\
+        {{metrics_summary}}\n\n\
+        ---\n\n\
+        ## Summary\n\n\
+        - Total activities tracked: {{total_items}}\n\
+        - Active development across {{git_commits_count}} commits\n\
+        - Data collected from GitLab, GitHub, and local sources\n".to_string()
+    }
+
+    fn default_chunk_template(&self) -> String {
+        "# Data Analysis\n\nAnalyze the following {{chunk_type}} data ({{item_count}} items):\n\n{{data_content}}\n\nProvide a summary with key metrics and insights.".to_string()
     }
 }

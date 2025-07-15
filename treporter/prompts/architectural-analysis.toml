@@ -1,0 +1,242 @@
+# Advanced Prompt Configuration for Architectural Analysis
+# This file contains sophisticated prompts designed to generate detailed architectural analysis
+
+[architectural_analysis]
+# Base context that will be prepended to all prompts
+base_context = """
+You are an expert software architect and technical analyst working on the SPEAR/CPM project, 
+a DARPA-funded cybersecurity research initiative focused on least-privilege computing and static analysis.
+
+Your role is to analyze development activity data and provide deep technical insights about:
+- System architecture and design patterns
+- Code quality and technical debt
+- Development workflow and team dynamics
+- Technical challenges and solutions
+- Performance and scalability considerations
+- Security implications
+
+Always provide specific, evidence-based analysis with concrete examples from the data.
+"""
+
+# Executive summary prompt
+executive_summary_prompt = """
+Analyze this project data to create a comprehensive executive summary. Focus on:
+
+1. **Project Momentum**: Assess the overall health and velocity of development
+2. **Architectural Decisions**: Identify key architectural choices made during this period
+3. **Technical Milestones**: Highlight major achievements and breakthroughs
+4. **Critical Challenges**: Identify and analyze significant obstacles addressed
+5. **Strategic Direction**: Evaluate the project's trajectory and focus areas
+
+Provide quantitative metrics where possible (commit frequency, lines of code, issue resolution rates).
+Reference specific commits, files, or pull requests from the data.
+Give a clear assessment of project health and momentum.
+"""
+
+# Technical foundation analysis prompt
+technical_foundation_prompt = """
+Examine the technical foundation of this project by analyzing:
+
+1. **Technology Stack**: Identify core technologies, frameworks, and tools being used
+2. **Build System**: Analyze build configuration, dependencies, and infrastructure
+3. **Module Architecture**: Examine the structure of components, services, and libraries
+4. **Integration Patterns**: Identify how different components communicate and integrate
+5. **Development Workflow**: Assess the development process, tooling, and practices
+
+Look for patterns in:
+- File modifications and new additions
+- Dependency changes and upgrades
+- Configuration updates
+- Build system improvements
+- Testing and quality assurance practices
+
+Provide specific examples with file paths and commit references.
+"""
+
+# Code evolution analysis prompt
+codebase_evolution_prompt = """
+Analyze the evolution of the codebase during this period:
+
+1. **New Components**: Identify newly added modules, classes, or functionality
+2. **Enhancements**: Analyze improvements to existing components
+3. **Refactoring**: Identify code restructuring and quality improvements
+4. **Deprecations**: Note any removed or deprecated functionality
+5. **Performance**: Analyze performance-related changes and optimizations
+6. **Security**: Identify security enhancements and vulnerability fixes
+
+For each category, provide:
+- Specific file paths and commit hashes
+- Impact assessment on system architecture
+- Quality metrics if available
+- Relationship to other components
+
+Focus on meaningful changes that affect system architecture or capability.
+"""
+
+# Architecture patterns analysis prompt
+architecture_patterns_prompt = """
+Identify and analyze architectural patterns and design decisions:
+
+1. **Design Patterns**: Identify implemented patterns (Factory, Observer, Strategy, etc.)
+2. **System Architecture**: Analyze overall system design (microservices, monolith, etc.)
+3. **Data Structures**: Examine key data structures and algorithms chosen
+4. **API Design**: Analyze interface design and communication patterns
+5. **Error Handling**: Assess error handling and resilience strategies
+6. **Configuration Management**: Examine how configuration is handled
+
+For each pattern or decision:
+- Provide specific code examples or file references
+- Explain the rationale and benefits
+- Identify potential issues or improvements
+- Assess alignment with project goals
+
+Focus on decisions that significantly impact system design or maintainability.
+"""
+
+# Development workflow analysis prompt
+development_workflow_prompt = """
+Analyze the development workflow and process improvements:
+
+1. **Commit Patterns**: Analyze commit frequency, size, and quality
+2. **Branching Strategy**: Assess branch management and merge practices
+3. **Code Review**: Evaluate code review processes and quality
+4. **Testing Practices**: Examine testing coverage and quality assurance
+5. **Documentation**: Assess documentation quality and maintenance
+6. **Collaboration**: Analyze team collaboration and communication patterns
+
+Provide metrics on:
+- Average commit size and frequency
+- Code review turnaround times
+- Issue resolution rates
+- Testing coverage trends
+- Documentation updates
+
+Identify process improvements and best practices observed.
+"""
+
+# Problem resolution analysis prompt
+problem_resolution_prompt = """
+Examine how problems were identified and resolved:
+
+1. **Issue Identification**: How were problems discovered and reported?
+2. **Root Cause Analysis**: What debugging approaches were used?
+3. **Solution Development**: How were solutions designed and implemented?
+4. **Testing and Validation**: How were fixes tested and validated?
+5. **Process Improvements**: What lessons were learned and applied?
+6. **Technical Debt**: How was technical debt addressed?
+
+For each significant issue:
+- Provide issue/commit references
+- Analyze the problem-solving approach
+- Assess solution effectiveness
+- Identify patterns in problem types
+- Evaluate prevention measures
+
+Focus on complex problems that required significant investigation or architectural changes.
+"""
+
+# Performance and scalability analysis prompt
+performance_scalability_prompt = """
+Assess performance considerations and scalability improvements:
+
+1. **Performance Optimizations**: Identify performance-related changes
+2. **Scalability Enhancements**: Analyze scalability improvements
+3. **Resource Utilization**: Examine resource usage optimizations
+4. **Bottleneck Resolution**: Identify and analyze resolved bottlenecks
+5. **Monitoring and Observability**: Assess monitoring improvements
+6. **Capacity Planning**: Evaluate capacity planning considerations
+
+Look for:
+- Algorithm improvements
+- Data structure optimizations
+- Caching implementations
+- Database query optimizations
+- Network communication improvements
+- Memory usage optimizations
+
+Provide specific examples with performance impact where possible.
+"""
+
+# Security and reliability analysis prompt
+security_reliability_prompt = """
+Evaluate security measures and reliability improvements:
+
+1. **Security Vulnerabilities**: Identify addressed security issues
+2. **Authentication/Authorization**: Analyze access control improvements
+3. **Data Protection**: Examine data security and privacy measures
+4. **Input Validation**: Assess input sanitization and validation
+5. **Error Handling**: Evaluate error handling and fault tolerance
+6. **Compliance**: Identify compliance and regulatory considerations
+
+For each security-related change:
+- Assess the vulnerability or risk addressed
+- Evaluate the solution effectiveness
+- Identify potential remaining risks
+- Assess impact on system reliability
+- Examine testing and validation approaches
+
+Focus on changes that significantly impact system security or reliability.
+"""
+
+# Technical challenges analysis prompt
+technical_challenges_prompt = """
+Identify and analyze major technical challenges:
+
+1. **Complex Problems**: Identify the most challenging technical issues
+2. **Research and Investigation**: Analyze investigation approaches used
+3. **Alternative Solutions**: Examine different approaches considered
+4. **Implementation Strategy**: Assess chosen implementation approaches
+5. **Trade-offs and Compromises**: Analyze decisions and trade-offs made
+6. **Validation Methods**: Examine how solutions were tested and validated
+
+For each major challenge:
+- Describe the technical complexity
+- Analyze the problem-solving approach
+- Assess solution elegance and effectiveness
+- Identify lessons learned
+- Evaluate reusability of solutions
+
+Focus on challenges that required significant engineering effort or innovation.
+"""
+
+# Lessons learned analysis prompt
+lessons_learned_prompt = """
+Extract key lessons learned and best practices:
+
+1. **Effective Practices**: Identify successful development approaches
+2. **Pitfalls and Mistakes**: Analyze problems encountered and avoided
+3. **Process Improvements**: Examine workflow and process enhancements
+4. **Tool and Technology Insights**: Assess tool effectiveness and choices
+5. **Team Collaboration**: Evaluate collaboration patterns and improvements
+6. **Knowledge Sharing**: Analyze documentation and knowledge transfer
+
+For each lesson:
+- Provide specific examples from the data
+- Explain the impact and importance
+- Assess applicability to future work
+- Identify patterns and trends
+- Suggest actionable improvements
+
+Focus on insights that can improve future development effectiveness.
+"""
+
+# Recommendations analysis prompt
+recommendations_prompt = """
+Based on the architectural analysis, provide specific recommendations:
+
+1. **Priority Areas**: Identify the most important areas for improvement
+2. **Technical Debt**: Recommend technical debt to address
+3. **New Capabilities**: Suggest new features or enhancements
+4. **Process Optimizations**: Recommend workflow improvements
+5. **Tools and Technologies**: Suggest new tools or technology upgrades
+6. **Team Development**: Recommend skill development areas
+
+For each recommendation:
+- Provide clear rationale based on the data
+- Assess implementation complexity and effort
+- Identify potential risks and benefits
+- Suggest timeline and prioritization
+- Propose success metrics
+
+Prioritize recommendations by impact and feasibility.
+"""
