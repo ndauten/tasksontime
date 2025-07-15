@@ -6,6 +6,8 @@ pub mod collectors;
 pub mod llm;
 pub mod generators;
 pub mod cli;
+pub mod preprocessor;
+pub mod ollama;
 
 pub use config::Config;
 pub use types::CollectedData;
