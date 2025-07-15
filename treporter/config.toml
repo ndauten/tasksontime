@@ -133,7 +133,7 @@ temperature = 0.3
 [templates]
 # Monthly report template
 [templates.monthly_report]
-path = "templates/monthly_report.md"
+path = "templates/cpm-spear-simple.md"
 output_format = "markdown"
 sections = ["executive_summary", "accomplishments", "issues", "next_month"]
 
