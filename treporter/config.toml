@@ -123,9 +123,9 @@ include_commits = true
 
 # LLM Configuration
 [llm]
-provider = "openai"  # or "anthropic", "local"
-model = "gpt-4-turbo"  # Biggest model with 128K context
-api_key_env = "OPENAI_API_KEY"
+provider = "ollama"  # or "openai", "anthropic", "local"
+model = "llama3.1:8b"  # Ollama model
+api_key_env = "OLLAMA_API_KEY"  # Not needed for Ollama but kept for compatibility
 max_tokens = 4000  # Increased for more comprehensive reports
 temperature = 0.3
 

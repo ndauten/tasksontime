@@ -33,7 +33,7 @@ impl LLMClient {
         
         // Initialize Ollama client if needed
         let ollama_client = if use_ollama {
-            Some(OllamaClient::new(None, Some("llama3.1:8b".to_string())))
+            Some(OllamaClient::new(None, Some(config.llm.model.clone())))
         } else {
             None
         };
