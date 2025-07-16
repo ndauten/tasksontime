@@ -69,6 +69,10 @@ pub enum Commands {
         /// Use multiple data files to merge
         #[arg(long, num_args = 1.., value_delimiter = ' ')]
         data_files: Vec<String>,
+        
+        /// Output filename (without extension)
+        #[arg(short, long)]
+        output: Option<String>,
     },
     
     /// Show configuration information

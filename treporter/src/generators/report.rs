@@ -54,12 +54,25 @@ impl ReportGenerator {
     }
 
     pub async fn generate_architectural_analysis(&self, data: &CollectedData) -> Result<String> {
+        self.generate_architectural_analysis_with_output(data, None).await
+    }
+
+    pub async fn generate_architectural_analysis_with_output(&self, data: &CollectedData, output_filename: Option<&str>) -> Result<String> {
         println!("🏗️  Generating architectural analysis report using LLM...");
         let analysis = self.llm_client
             .generate_architectural_analysis(data)
             .await?;
         
-        let output_path = self.generate_output_path("architectural_analysis", &data.metadata.date_range_start)?;
+        let output_path = if let Some(filename) = output_filename {
+            // Use custom filename
+            let output_dir = &self.config.output.base_directory;
+            fs::create_dir_all(output_dir)?;
+            format!("{}/{}.md", output_dir, filename)
+        } else {
+            // Use default filename generation
+            self.generate_output_path("architectural_analysis", &data.metadata.date_range_start)?
+        };
+        
         fs::write(&output_path, &analysis)?;
         
         println!("✅ Architectural analysis saved to: {}", output_path);

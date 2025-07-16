@@ -148,7 +148,7 @@ async fn main() -> Result<()> {
             }
         },
         
-        Commands::ArchitecturalAnalysis { ref data_file, ref data_files } => {
+        Commands::ArchitecturalAnalysis { ref data_file, ref data_files, ref output } => {
             let data = match (data_file, data_files.is_empty()) {
                 (Some(file), true) => {
                     println!("📂 Loading data from: {}", file);
@@ -173,7 +173,7 @@ async fn main() -> Result<()> {
             };
             
             let generator = ReportGenerator::new(config)?;
-            let analysis_path = generator.generate_architectural_analysis(&data).await?;
+            let analysis_path = generator.generate_architectural_analysis_with_output(&data, output.as_deref()).await?;
             println!("🏗️  Architectural analysis generated: {}", analysis_path);
         },
     }
