@@ -1,6 +1,6 @@
-# TReporter - Automated Technical Reporting Tool ✅ FULLY FUNCTIONAL
+# ChronoPulse - Automated Technical Reporting Tool ✅ FULLY FUNCTIONAL
 
-TReporter is a comprehensive tool for automatically generating monthly project reports and group meeting slides based on your development activity across GitLab, GitHub, local files, and git repositories.
+ChronoPulse is a comprehensive tool for automatically generating monthly project reports and group meeting slides based on your development activity across GitLab, GitHub, local files, and git repositories.
 
 ## 🎉 Current Status: Production Ready
 
@@ -26,24 +26,24 @@ The tool is **fully functional** and ready for production use with these capabil
 
 1. **Clone and Setup**
    ```bash
-   cd treporter
+   cd chronopulse
    make build
    ```
 
 2. **Test Without API Keys** (works immediately!)
    ```bash
-   ./target/release/treporter test
-   ./target/release/treporter config
+   ./target/release/chronopulse test
+   ./target/release/chronopulse config
    ```
 
 3. **Generate Reports** (works without LLM API keys!)
    ```bash
    # Collect data and generate all reports for last 30 days
-   ./target/release/treporter --since 2024-12-01 --until 2024-12-31 all
+   ./target/release/chronopulse --since 2024-12-01 --until 2024-12-31 all
    
    # Step by step workflow
-   ./target/release/treporter collect --output data.json
-   ./target/release/treporter all --data-file data.json
+   ./target/release/chronopulse collect --output data.json
+   ./target/release/chronopulse all --data-file data.json
    ```
 
 4. **Optional: Configure API Keys** (for enhanced LLM reports)
@@ -110,25 +110,25 @@ The tool is configured via `config.toml`. Key sections include:
 
 ```bash
 # Show configuration
-treporter config
+chronopulse config
 
 # Test data collection (no reports generated)
-treporter test
+chronopulse test
 
 # Collect raw data only
-treporter collect -o my_data.json
+chronopulse collect -o my_data.json
 
 # Generate monthly report
-treporter monthly-report [--data-file existing_data.json]
+chronopulse monthly-report [--data-file existing_data.json]
 
 # Generate group slides
-treporter group-slides [--data-file existing_data.json]
+chronopulse group-slides [--data-file existing_data.json]
 
 # Generate all reports
-treporter all [--data-file existing_data.json]
+chronopulse all [--data-file existing_data.json]
 
 # Specify custom date range
-treporter all --since 2025-01-01 --until 2025-01-31
+chronopulse all --since 2025-01-01 --until 2025-01-31
 ```
 
 ## Data Sources
@@ -204,22 +204,22 @@ ANTHROPIC_API_KEY=sk-ant-your-key
 
 ### Custom Date Ranges
 ```bash
-treporter all --since 2025-01-01 --until 2025-01-31
+chronopulse all --since 2025-01-01 --until 2025-01-31
 ```
 
 ### Using Cached Data
 ```bash
 # Collect data once
-treporter collect -o monthly_data.json
+chronopulse collect -o monthly_data.json
 
 # Generate multiple reports from same data
-treporter monthly-report --data-file monthly_data.json
-treporter group-slides --data-file monthly_data.json
+chronopulse monthly-report --data-file monthly_data.json
+chronopulse group-slides --data-file monthly_data.json
 ```
 
 ### Verbose Output
 ```bash
-treporter -v all
+chronopulse -v all
 ```
 
 ## Development
@@ -268,3 +268,17 @@ cargo test
 ## Contributing
 
 [Add contribution guidelines if applicable]
+
+---
+
+## Future Naming Considerations
+
+While this tool is currently named **ChronoPulse**, we're considering several alternative names for future rebranding:
+
+1. **Chronicler** - Emphasizes the storytelling and documentation aspect
+2. **Pulsewave** - Modern, dynamic feel with emphasis on ongoing activity analysis  
+3. **Synthwave** - Retro-futuristic vibe highlighting synthesis and modern tech
+4. **SynthPulse** - Combines synthesis focus with energetic pulse concept
+5. **Chronosaurus** - Playful, memorable name suggesting mastery over time and data
+
+Each name reflects different aspects of the tool's capabilities: time-based tracking (Chrono), narrative generation (Chronicler), dynamic analysis (Pulsewave), intelligent synthesis (Synthwave/SynthPulse), and powerful data processing (Chronosaurus). The final naming decision will depend on future feature development and branding direction.

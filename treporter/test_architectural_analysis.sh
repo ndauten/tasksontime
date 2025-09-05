@@ -34,12 +34,12 @@ print_error() {
 
 # Check if we're in the right directory
 if [ ! -f "Cargo.toml" ]; then
-    print_error "Please run this script from the treporter directory"
+    print_error "Please run this script from the chronopulse directory"
     exit 1
 fi
 
 # Build the project
-print_status "Building treporter..."
+print_status "Building chronopulse..."
 cargo build --release
 
 # Check if Q2 data files exist
@@ -72,7 +72,7 @@ print_status "Generating architectural analysis report..."
 echo "Using data files: ${AVAILABLE_FILES[*]}"
 
 # Run the architectural analysis command
-if ./target/release/treporter architectural-analysis --data-files "${AVAILABLE_FILES[@]}"; then
+if ./target/release/chronopulse architectural-analysis --data-files "${AVAILABLE_FILES[@]}"; then
     print_success "Architectural analysis completed successfully!"
 else
     print_error "Failed to generate architectural analysis"
@@ -103,13 +103,13 @@ fi
 echo ""
 print_status "Usage Examples:"
 echo "1. Generate from existing data files:"
-echo "   ./target/release/treporter architectural-analysis --data-files file1.json file2.json file3.json"
+echo "   ./target/release/chronopulse architectural-analysis --data-files file1.json file2.json file3.json"
 echo ""
 echo "2. Generate from single data file:"
-echo "   ./target/release/treporter architectural-analysis --data-file collected_data.json"
+echo "   ./target/release/chronopulse architectural-analysis --data-file collected_data.json"
 echo ""
 echo "3. Generate with fresh data collection:"
-echo "   ./target/release/treporter architectural-analysis --from 2025-04-01 --to 2025-06-30"
+echo "   ./target/release/chronopulse architectural-analysis --from 2025-04-01 --to 2025-06-30"
 echo ""
 
 # Show template information

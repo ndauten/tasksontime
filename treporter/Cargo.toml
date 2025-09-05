@@ -1,8 +1,8 @@
 [package]
-name = "treporter"
+name = "chronopulse"
 version = "0.1.0"
 edition = "2021"
-description = "Automated project reporting tool with LLM integration"
+description = "ChronoPulse - Automated project reporting tool with LLM integration"
 
 [dependencies]
 reqwest = { version = "0.11", features = ["json", "blocking"] }

@@ -101,7 +101,7 @@ platform = "local"
 path = "/Users/ndd/haven/thebrain/projects/spear/spear-hq"
 include_commits = true
 
-# Add the tasksontime repo where treporter lives
+# Add the tasksontime repo where chronopulse lives
 [[repositories]]
 name = "tasksontime"
 platform = "local"
@@ -124,7 +124,13 @@ include_commits = true
 # LLM Configuration
 [llm]
 provider = "ollama"  # or "openai", "anthropic", "local"
-model = "llama3.1:8b"  # Ollama model
+model = "llama3.1:70b"  # Large context general purpose model (128K tokens) - best for complex analysis
+# model = "llama3.1:8b"  # Medium model - good balance of speed and quality
+# model = "mistral:latest"  # Excellent general purpose model
+# model = "codellama:34b-instruct"  # Large CodeLlama for code understanding
+# model = "codellama:13b-instruct"  # Smaller CodeLlama for code understanding
+# model = "deepseek-coder:33b-instruct"  # Large model for better code analysis
+# model = "deepseek-coder:6.7b-instruct"  # Smaller/faster alternative
 api_key_env = "OLLAMA_API_KEY"  # Not needed for Ollama but kept for compatibility
 max_tokens = 4000  # Increased for more comprehensive reports
 temperature = 0.3

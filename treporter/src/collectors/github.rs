@@ -128,7 +128,7 @@ impl GitHubCollector {
             let resp = self.client
                 .get(&url)
                 .header("Authorization", format!("Bearer {}", self.token))
-                .header("User-Agent", "treporter/1.0")
+                .header("User-Agent", "chronopulse/1.0")
                 .header("Accept", "application/vnd.github+json")
                 .send()
                 .await?;
@@ -159,7 +159,7 @@ impl GitHubCollector {
                     let resp = self.client
                         .get(&url)
                         .header("Authorization", format!("Bearer {}", self.token))
-                        .header("User-Agent", "treporter/1.0")
+                        .header("User-Agent", "chronopulse/1.0")
                         .header("Accept", "application/vnd.github+json")
                         .send()
                         .await?;
@@ -202,7 +202,7 @@ impl GitHubCollector {
             let resp = self.client
                 .get(&url)
                 .header("Authorization", format!("Bearer {}", self.token))
-                .header("User-Agent", "treporter/1.0")
+                .header("User-Agent", "chronopulse/1.0")
                 .header("Accept", "application/vnd.github+json")
                 .send()
                 .await?;
@@ -268,7 +268,7 @@ impl GitHubCollector {
             let resp = self.client
                 .get(&url)
                 .header("Authorization", format!("Bearer {}", self.token))
-                .header("User-Agent", "treporter/1.0")
+                .header("User-Agent", "chronopulse/1.0")
                 .header("Accept", "application/vnd.github+json")
                 .send()
                 .await?;
@@ -329,7 +329,7 @@ impl GitHubCollector {
             let resp = self.client
                 .get(&url)
                 .header("Authorization", format!("Bearer {}", self.token))
-                .header("User-Agent", "treporter/1.0")
+                .header("User-Agent", "chronopulse/1.0")
                 .header("Accept", "application/vnd.github+json")
                 .send()
                 .await?;
@@ -400,7 +400,7 @@ impl GitHubCollector {
         let resp = self.client
             .get(&url)
             .header("Authorization", format!("Bearer {}", self.token))
-            .header("User-Agent", "treporter/1.0")
+            .header("User-Agent", "chronopulse/1.0")
             .header("Accept", "application/vnd.github.diff")
             .send()
             .await?;
@@ -430,7 +430,7 @@ impl GitHubCollector {
         let resp = self.client
             .get(&url)
             .header("Authorization", format!("Bearer {}", self.token))
-            .header("User-Agent", "treporter/1.0")
+            .header("User-Agent", "chronopulse/1.0")
             .header("Accept", "application/vnd.github.diff")
             .send()
             .await?;

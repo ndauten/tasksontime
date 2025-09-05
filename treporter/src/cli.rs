@@ -2,8 +2,8 @@ use clap::{Parser, Subcommand};
 use chrono::{DateTime, Utc, NaiveDate, Datelike};
 
 #[derive(Parser)]
-#[command(name = "treporter")]
-#[command(about = "Automated project reporting tool with LLM integration")]
+#[command(name = "chronopulse")]
+#[command(about = "ChronoPulse - Automated project reporting tool")]
 #[command(version = "1.0")]
 pub struct Cli {
     #[command(subcommand)]
@@ -71,6 +71,32 @@ pub enum Commands {
         data_files: Vec<String>,
         
         /// Output filename (without extension)
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+    
+    /// Generate simple architectural report (new pipeline)
+    NewReport {
+        /// Use previously collected data file
+        #[arg(short, long)]
+        data_file: Option<String>,
+        
+        /// Use multiple data files to merge
+        #[arg(long, num_args = 1.., value_delimiter = ' ')]
+        data_files: Vec<String>,
+        
+        /// Output filename (without extension)
+        #[arg(short, long)]
+        output: Option<String>,
+    },
+    
+    /// Analyze any file directly with LLM (no preprocessing)
+    DirectAnalysis {
+        /// Input file to analyze
+        #[arg(short, long)]
+        input: String,
+        
+        /// Output file for analysis
         #[arg(short, long)]
         output: Option<String>,
     },

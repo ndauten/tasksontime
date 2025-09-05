@@ -26,22 +26,22 @@ regression-test:
 	cargo test --quiet
 	@echo ""
 	@echo "🧪 Testing data collection functionality..."
-	./target/release/treporter --from 2025-06-01 --to 2025-07-11 test
+	./target/release/chronopulse --from 2025-06-01 --to 2025-07-11 test
 	@echo ""
 	@echo "⚙️  Testing configuration validation..."
-	./target/release/treporter config
+	./target/release/chronopulse config
 	@echo ""
 	@echo "📊 Testing data collection (save to file)..."
-	./target/release/treporter --from 2025-06-01 --to 2025-07-11 collect --output regression_test_data.json
+	./target/release/chronopulse --from 2025-06-01 --to 2025-07-11 collect --output regression_test_data.json
 	@echo ""
 	@echo "📄 Testing monthly report generation..."
-	./target/release/treporter monthly-report --data-file regression_test_data.json
+	./target/release/chronopulse monthly-report --data-file regression_test_data.json
 	@echo ""
 	@echo "📊 Testing group slides generation..."
-	./target/release/treporter group-slides --data-file regression_test_data.json
+	./target/release/chronopulse group-slides --data-file regression_test_data.json
 	@echo ""
 	@echo "🎯 Testing all reports generation..."
-	./target/release/treporter all --data-file regression_test_data.json
+	./target/release/chronopulse all --data-file regression_test_data.json
 	@echo ""
 	@echo "🧹 Cleaning up test files..."
 	rm -f regression_test_data.json
@@ -65,7 +65,7 @@ clean:
 
 # Install (build and make available in PATH)
 install: build
-	cp target/release/treporter ~/.local/bin/ || cp target/release/treporter /usr/local/bin/
+	cp target/release/chronopulse ~/.local/bin/ || cp target/release/chronopulse /usr/local/bin/
 
 # Development commands
 dev-build:
@@ -79,23 +79,23 @@ dev-config:
 
 # Production commands using built binary
 run-test: build
-	./target/release/treporter test
+	./target/release/chronopulse test
 
 run-collect: build
-	./target/release/treporter collect
+	./target/release/chronopulse collect
 
 run-monthly: build
-	./target/release/treporter monthly-report
+	./target/release/chronopulse monthly-report
 
 run-slides: build
-	./target/release/treporter group-slides
+	./target/release/chronopulse group-slides
 
 run-all: build
-	./target/release/treporter all
+	./target/release/chronopulse all
 
 # Setup commands
 setup:
-	@echo "Setting up treporter..."
+	@echo "Setting up chronopulse..."
 	@if [ ! -f .env ]; then cp .env.example .env && echo "Created .env file from example"; fi
 	@echo "Please edit .env with your API tokens"
 	@echo "Then run 'make dev-test' to verify setup"

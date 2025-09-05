@@ -856,7 +856,7 @@ impl LLMClient {
 
     /// Generate comprehensive architectural analysis reports
     pub async fn generate_architectural_analysis(&self, data: &CollectedData) -> Result<String> {
-        println!("🏗️  Starting comprehensive architectural analysis...");
+        println!("🏗️  Starting multi-stage architectural analysis...");
         
         // Read the architectural analysis template
         let template = match std::fs::read_to_string("templates/architectural-analysis.md") {
@@ -873,53 +873,196 @@ impl LLMClient {
         
         println!("📊 Architectural analysis - preprocessed data: {} characters", structured_content.len());
         
-        // Generate the analysis using template-based processing
-        self.generate_template_based_report(&structured_content, &template).await
+        // Stage 1: Extract technical facts and categorize changes
+        let technical_analysis = self.extract_technical_facts(&structured_content).await?;
+        
+        // Stage 2: Identify architectural patterns and themes
+        let architectural_themes = self.identify_architectural_themes(&technical_analysis, &structured_content).await?;
+        
+        // Stage 3: Synthesize high-level insights
+        let synthesis = self.synthesize_architectural_insights(&architectural_themes, &technical_analysis).await?;
+        
+        // Stage 4: Generate the final report using the template
+        self.generate_final_architectural_report(&template, &synthesis, data).await
     }
 
-    fn default_architectural_template(&self) -> String {
-        r#"# Comprehensive Architectural Analysis Report
+    /// Stage 1: Extract technical facts from commits and changes
+    async fn extract_technical_facts(&self, content: &str) -> Result<String> {
+        println!("🔍 Stage 1: Extracting technical facts from development activity...");
+        
+        let prompt = format!(
+            "You are a senior software architect analyzing development activity. Your task is to extract concrete technical facts from the provided data.\n\n\
+            EXTRACTION GOALS:\n\
+            - Identify specific files, modules, and components that were modified\n\
+            - Categorize changes as: new features, refactoring, bug fixes, infrastructure, documentation\n\
+            - Extract technology stack information (languages, frameworks, tools)\n\
+            - Identify integration points and dependencies\n\
+            - Note any architectural decisions or design patterns\n\
+            - Quantify scope of changes (files modified, lines of code, complexity)\n\n\
+            ANALYSIS DATA:\n{}\n\n\
+            Provide a structured technical analysis with concrete facts and specific examples. Focus on WHAT was changed, not WHY or the broader implications.",
+            content
+        );
+        
+        let response = if self.use_ollama {
+            if let Some(ollama_client) = &self.ollama_client {
+                ollama_client.generate(&prompt).await?
+            } else {
+                "Technical fact extraction unavailable.".to_string()
+            }
+        } else {
+            self.call_llm_api_with_retry(&prompt, 3).await?
+        };
+        
+        println!("✅ Stage 1 complete: Technical facts extracted");
+        Ok(response)
+    }
 
-## Executive Summary
+    /// Stage 2: Identify architectural themes and patterns
+    async fn identify_architectural_themes(&self, technical_facts: &str, raw_data: &str) -> Result<String> {
+        println!("🎯 Stage 2: Identifying architectural themes and patterns...");
+        
+        let prompt = format!(
+            "You are a software architect analyzing technical changes to identify broader architectural themes.\n\n\
+            THEME IDENTIFICATION GOALS:\n\
+            - Group related changes into coherent architectural themes\n\
+            - Identify system-level improvements or modifications\n\
+            - Recognize architectural patterns being implemented\n\
+            - Detect infrastructure or platform changes\n\
+            - Identify cross-cutting concerns (security, performance, maintainability)\n\
+            - Note any architectural debt being addressed\n\n\
+            TECHNICAL FACTS:\n{}\n\n\
+            RAW DATA REFERENCE:\n{}\n\n\
+            Organize the technical facts into major architectural themes. For each theme, provide:\n\
+            1. Theme name and description\n\
+            2. Related changes and components\n\
+            3. Architectural significance\n\
+            4. Technical impact and scope",
+            technical_facts, 
+            &raw_data[..raw_data.len().min(2000)] // Truncate for context
+        );
+        
+        let response = if self.use_ollama {
+            if let Some(ollama_client) = &self.ollama_client {
+                ollama_client.generate(&prompt).await?
+            } else {
+                "Architectural theme identification unavailable.".to_string()
+            }
+        } else {
+            self.call_llm_api_with_retry(&prompt, 3).await?
+        };
+        
+        println!("✅ Stage 2 complete: Architectural themes identified");
+        Ok(response)
+    }
 
-{LLM: Analyze the provided project data and create a comprehensive executive summary that includes: overall project health and momentum, key architectural decisions made during this period, major technical milestones achieved, critical challenges identified and addressed, and strategic direction and focus areas. Provide specific metrics and concrete examples from the data.}
+    /// Stage 3: Synthesizes high-level architectural insights
+    async fn synthesize_architectural_insights(&self, themes: &str, technical_facts: &str) -> Result<String> {
+        println!("🧠 Stage 3: Synthesizing high-level architectural insights...");
+        
+        let prompt = format!(
+            "You are a chief architect creating strategic insights from development activity analysis.\n\n\
+            SYNTHESIS GOALS:\n\
+            - Synthesize high-level architectural direction and vision\n\
+            - Identify strategic technical decisions and their rationale\n\
+            - Assess architectural evolution and maturity\n\
+            - Evaluate technical debt and quality improvements\n\
+            - Determine system scalability and maintainability trends\n\
+            - Identify risks, opportunities, and recommendations\n\n\
+            ARCHITECTURAL THEMES:\n{}\n\n\
+            TECHNICAL FACTS:\n{}\n\n\
+            Create a comprehensive architectural synthesis that includes:\n\
+            1. Overall architectural direction and strategy\n\
+            2. Key technical achievements and milestones\n\
+            3. Architectural challenges and how they were addressed\n\
+            4. Quality and technical debt assessment\n\
+            5. Future architectural implications and recommendations\n\n\
+            Focus on synthesis, not just summarization. Draw connections between themes and provide strategic insights.",
+            themes, technical_facts
+        );
+        
+        let response = if self.use_ollama {
+            if let Some(ollama_client) = &self.ollama_client {
+                ollama_client.generate(&prompt).await?
+            } else {
+                "Architectural synthesis unavailable.".to_string()
+            }
+        } else {
+            self.call_llm_api_with_retry(&prompt, 3).await?
+        };
+        
+        println!("✅ Stage 3 complete: Architectural insights synthesized");
+        Ok(response)
+    }
 
-## Technical Foundation Analysis
-
-{LLM: Analyze the technical foundation of the project based on commit patterns, file changes, and development activity. Address: core technologies and frameworks being used, build system and infrastructure choices, key architectural components, integration patterns and data flows, and development workflow and tooling. Reference specific files, commits, or code changes from the data.}
-
-## Codebase Evolution
-
-{LLM: Examine the codebase evolution during this period by analyzing: new modules or components added, existing components enhanced or refactored, deprecated or removed functionality, code quality improvements, performance optimizations, and security enhancements. Provide specific examples with file paths, commit messages, and impact assessment.}
-
-## Architecture Patterns and Decisions
-
-{LLM: Identify and analyze key architectural patterns and decisions evident in the development activity: design patterns implemented, system architecture choices, data structures and algorithms selected, API design and interface patterns, error handling and resilience strategies, and configuration management approaches. Support each pattern with specific code examples or implementation details from the data.}
-
-## Development Progress Metrics
-
-{LLM: Provide quantitative analysis of development progress: lines of code added/modified/deleted, number of files created/modified, commit frequency and distribution, issue resolution rates, feature completion metrics, code review statistics, and testing coverage improvements. Present metrics in a clear, analytical format.}
-
-## Technical Challenges and Solutions
-
-{LLM: Identify and analyze major technical challenges faced and how they were addressed: complex problems encountered, research and investigation approaches, alternative solutions considered, implementation strategies chosen, trade-offs and compromises made, and validation and testing methods. Provide detailed technical analysis with specific examples.}
-
-## Lessons Learned and Best Practices
-
-{LLM: Extract key lessons learned and best practices from this development period: effective development practices observed, pitfalls avoided or encountered, process improvements implemented, tool and technology insights, team collaboration insights, and documentation and knowledge sharing improvements. Focus on actionable insights for future development.}
-
-## Recommendations for Next Period
-
-{LLM: Based on the architectural analysis, provide specific recommendations for the next development period: priority areas for improvement, technical debt to address, new features or capabilities to implement, process optimizations to consider, tools or technologies to evaluate, and team skill development needs. Provide prioritized, actionable recommendations.}
-
----
-
-**Report Generation Metadata:**
-- Analysis Period: {{date_range_start}} to {{date_range_end}}
-- Data Sources: {{sources_used}}
-- Total Activities Analyzed: {{total_items}}
-- Report Generated: {{generation_timestamp}}
-"#.to_string()
+    /// Stage 4: Generate final architectural report using template
+    async fn generate_final_architectural_report(&self, template: &str, synthesis: &str, data: &CollectedData) -> Result<String> {
+        println!("📝 Stage 4: Generating final architectural report...");
+        
+        // Parse template to find LLM_PROMPT sections
+        let llm_prompts = self.extract_llm_prompts(template);
+        println!("📝 Processing {} template sections with synthesized insights...", llm_prompts.len());
+        
+        let mut filled_template = template.to_string();
+        
+        // Process each LLM_PROMPT section with the synthesized insights
+        for (i, (placeholder, prompt)) in llm_prompts.iter().enumerate() {
+            println!("  📋 Processing section {}/{}: {}", i + 1, llm_prompts.len(), 
+                    &prompt[..prompt.len().min(60)]);
+            
+            let full_prompt = format!(
+                "You are an expert technical architect writing a comprehensive architectural analysis report for the SPEAR/CPM project.\n\n\
+                 Context: This is a DARPA-funded cybersecurity research project focused on least-privilege computing and static analysis.\n\n\
+                 ARCHITECTURAL SYNTHESIS:\n{}\n\n\
+                 Your specific task: {}\n\n\
+                 Using the architectural synthesis above, provide a detailed response that:\n\
+                 - References specific technical changes and their architectural significance\n\
+                 - Explains the broader implications of development activities\n\
+                 - Provides strategic technical insights\n\
+                 - Uses professional architectural language\n\
+                 - Focuses on system-level thinking and design decisions\n\n\
+                 Your response:",
+                synthesis, prompt
+            );
+            
+            let response = if self.use_ollama {
+                if let Some(ollama_client) = &self.ollama_client {
+                    match ollama_client.generate(&full_prompt).await {
+                        Ok(response) => response,
+                        Err(e) => {
+                            println!("    ⚠️  Ollama failed for section {}: {}", i + 1, e);
+                            format!("Analysis unavailable for this section due to processing error.")
+                        }
+                    }
+                } else {
+                    format!("LLM processing unavailable for this section.")
+                }
+            } else {
+                match self.call_llm_api_with_retry(&full_prompt, 3).await {
+                    Ok(response) => response,
+                    Err(e) => {
+                        println!("    ⚠️  LLM API failed for section {}: {}", i + 1, e);
+                        format!("Analysis unavailable for this section due to API error.")
+                    }
+                }
+            };
+            
+            // Replace the placeholder with the generated response
+            filled_template = filled_template.replace(placeholder, &response);
+            
+            // Small delay between prompts
+            sleep(Duration::from_millis(500)).await;
+        }
+        
+        // Replace any remaining template variables
+        filled_template = filled_template.replace("{{date_range_start}}", &data.metadata.date_range_start.format("%Y-%m-%d").to_string());
+        filled_template = filled_template.replace("{{date_range_end}}", &data.metadata.date_range_end.format("%Y-%m-%d").to_string());
+        filled_template = filled_template.replace("{{sources_used}}", &data.metadata.sources_used.join(", "));
+        filled_template = filled_template.replace("{{total_items}}", &data.total_items().to_string());
+        filled_template = filled_template.replace("{{generation_timestamp}}", &chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC").to_string());
+        
+        println!("✅ Stage 4 complete: Final architectural report generated");
+        Ok(filled_template)
     }
 
     // ...existing code...
@@ -1250,5 +1393,50 @@ impl LLMClient {
 
     fn default_chunk_template(&self) -> String {
         "# Data Analysis\n\nAnalyze the following {{chunk_type}} data ({{item_count}} items):\n\n{{data_content}}\n\nProvide a summary with key metrics and insights.".to_string()
+    }
+
+    fn default_architectural_template(&self) -> String {
+        r#"# Comprehensive Architectural Analysis Report
+
+## Executive Summary
+
+{LLM: Analyze the provided project data and create a comprehensive executive summary that includes: overall project health and momentum, key architectural decisions made during this period, major technical milestones achieved, critical challenges identified and addressed, and strategic direction and focus areas. Provide specific metrics and concrete examples from the data.}
+
+## Technical Foundation Analysis
+
+{LLM: Analyze the technical foundation of the project based on commit patterns, file changes, and development activity. Address: core technologies and frameworks being used, build system and infrastructure choices, key architectural components, integration patterns and data flows, and development workflow and tooling. Reference specific files, commits, or code changes from the data.}
+
+## Codebase Evolution
+
+{LLM: Examine the codebase evolution during this period by analyzing: new modules or components added, existing components enhanced or refactored, deprecated or removed functionality, code quality improvements, performance optimizations, and security enhancements. Provide specific examples with file paths, commit messages, and impact assessment.}
+
+## Architecture Patterns and Decisions
+
+{LLM: Identify and analyze key architectural patterns and decisions evident in the development activity: design patterns implemented, system architecture choices, data structures and algorithms selected, API design and interface patterns, error handling and resilience strategies, and configuration management approaches. Support each pattern with specific code examples or implementation details from the data.}
+
+## Development Progress Metrics
+
+{LLM: Provide quantitative analysis of development progress: lines of code added/modified/deleted, number of files created/modified, commit frequency and distribution, issue resolution rates, feature completion metrics, code review statistics, and testing coverage improvements. Present metrics in a clear, analytical format.}
+
+## Technical Challenges and Solutions
+
+{LLM: Identify and analyze major technical challenges faced and how they were addressed: complex problems encountered, research and investigation approaches, alternative solutions considered, implementation strategies chosen, trade-offs and compromises made, and validation and testing methods. Provide detailed technical analysis with specific examples.}
+
+## Lessons Learned and Best Practices
+
+{LLM: Extract key lessons learned and best practices from this development period: effective development practices observed, pitfalls avoided or encountered, process improvements implemented, tool and technology insights, team collaboration insights, and documentation and knowledge sharing improvements. Focus on actionable insights for future development.}
+
+## Recommendations for Next Period
+
+{LLM: Based on the architectural analysis, provide specific recommendations for the next development period: priority areas for improvement, technical debt to address, new features or capabilities to implement, process optimizations to consider, tools or technologies to evaluate, and team skill development needs. Provide prioritized, actionable recommendations.}
+
+---
+
+**Report Generation Metadata:**
+- Analysis Period: {{date_range_start}} to {{date_range_end}}
+- Data Sources: {{sources_used}}
+- Total Activities Analyzed: {{total_items}}
+- Report Generated: {{generation_timestamp}}
+"#.to_string()
     }
 }
