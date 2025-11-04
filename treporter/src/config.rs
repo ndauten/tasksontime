@@ -230,12 +230,24 @@ platform = "local"
 path = "."  # Current directory - change this to your repo path
 include_commits = true
 
-# Add more repositories by copying the [[repositories]] block above
+# Add more local repositories
 # [[repositories]]
 # name = "my-project"
 # platform = "local"
 # path = "/path/to/my-project"
 # include_commits = true
+
+# Remote repository examples (GitLab/GitHub)
+# Note: Remote repos are primarily accessed via data_sources.gitlab/github above
+# Use these entries if you want to clone and analyze local copies
+# [[repositories]]
+# name = "remote-project"
+# platform = "gitlab"  # or "github"
+# group = "namespace"  # GitLab group/namespace or GitHub owner
+# project_id = 12345   # GitLab project ID (optional)
+# include_commits = true
+# include_issues = true
+# include_merge_requests = true
 
 # ============================================================================
 # LLM CONFIGURATION
