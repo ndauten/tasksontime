@@ -27,18 +27,24 @@ The tool is **fully functional** and ready for production use with these capabil
 1. **Initialize Configuration**
    ```bash
    # Create a default config.toml with helpful comments
+   # Automatically detects git repository if run from within one
    chronopulse init
    
    # Or specify a custom location
    chronopulse init -o my-config.toml
    ```
+   
+   **Smart Repository Detection**: When you run `chronopulse init` from within a git repository, it automatically:
+   - Detects the repository root (searches up for `.git`)
+   - Sets the repository name and path in the config
+   - Confirms detection with: `✓ Detected git repository at: /path/to/repo`
 
 2. **Configure Your Project**
    ```bash
    # Edit the generated config.toml to:
    # - Set your project name and description
    # - Enable data sources (GitLab, GitHub, local files)
-   # - Add repositories to track
+   # - Add additional repositories to track
    # - Configure LLM settings
    
    # See docs/configuration-guide.md for detailed configuration help
