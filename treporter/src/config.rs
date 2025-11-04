@@ -221,8 +221,16 @@ time_patterns = [
 # ============================================================================
 # Add local repositories to track git history
 # Each repository requires: name, platform="local", and path
+# IMPORTANT: At least one repository entry is required. 
+# Edit the example below to point to your repository.
 
-# Example:
+[[repositories]]
+name = "chronopulse"
+platform = "local"
+path = "."  # Current directory - change this to your repo path
+include_commits = true
+
+# Add more repositories by copying the [[repositories]] block above
 # [[repositories]]
 # name = "my-project"
 # platform = "local"
