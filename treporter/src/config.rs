@@ -119,9 +119,19 @@ impl Config {
         Ok(config)
     }
     
-    /// Generate a default config.toml with helpful comments
+    /// Generate a default config.toml with helpful comments (legacy, uses current dir)
     pub fn generate_default() -> String {
-        r###"# ChronoPulse Configuration File
+        Self::generate_default_with_repo_path(".")
+    }
+    
+    /// Generate default config with specified repository path
+    fn generate_default_with_repo_path(repo_path: &str) -> String {
+        let repo_name = std::path::Path::new(repo_path)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("chronopulse");
+        
+        let template = r###"# ChronoPulse Configuration File
 # This file controls how ChronoPulse collects data and generates reports
 
 [project]
@@ -222,12 +232,11 @@ time_patterns = [
 # Add local repositories to track git history
 # Each repository requires: name, platform="local", and path
 # IMPORTANT: At least one repository entry is required. 
-# Edit the example below to point to your repository.
 
 [[repositories]]
-name = "chronopulse"
+name = "REPO_NAME_PLACEHOLDER"
 platform = "local"
-path = "."  # Current directory - change this to your repo path
+path = "REPO_PATH_PLACEHOLDER"
 include_commits = true
 
 # Add more local repositories
@@ -305,8 +314,8 @@ base_directory = "reports"
 # Date format for report filenames
 date_format = "%Y-%m"
 # Template for report filenames
-# Available variables: {project_name}, {template_name}, {date}
-filename_template = "{project_name}_{template_name}_{date}"
+# Available variables: {{project_name}}, {{template_name}}, {{date}}
+filename_template = "{{project_name}}_{{template_name}}_{{date}}"
 
 # ============================================================================
 # GETTING STARTED
@@ -330,7 +339,11 @@ filename_template = "{project_name}_{template_name}_{date}"
 #
 # 6. Generate reports:
 #    chronopulse all --from 2025-01-01 --to 2025-01-31
-"###.to_string()
+"###;
+        
+        template
+            .replace("REPO_NAME_PLACEHOLDER", repo_name)
+            .replace("REPO_PATH_PLACEHOLDER", repo_path)
     }
     
     /// Write default config to a file
@@ -342,14 +355,41 @@ filename_template = "{project_name}_{template_name}_{date}"
             anyhow::bail!("Config file '{}' already exists. Use --force to overwrite.", path);
         }
         
-        let config_content = Self::generate_default();
+        // Find git repository root by searching up directories
+        let repo_path = Self::find_git_root().unwrap_or_else(|| ".".to_string());
+        
+        let config_content = Self::generate_default_with_repo_path(&repo_path);
         std::fs::write(path, config_content)?;
         println!("✓ Created default config file: {}", path);
+        
+        if repo_path != "." {
+            println!("✓ Detected git repository at: {}", repo_path);
+        }
+        
         println!("\nNext steps:");
         println!("1. Edit {} to configure your project", path);
         println!("2. Set environment variables for API tokens (see config comments)");
         println!("3. Run 'chronopulse test' to verify your configuration");
         
         Ok(())
+    }
+    
+    /// Find the git repository root by searching up directories
+    fn find_git_root() -> Option<String> {
+        use std::env;
+        use std::path::PathBuf;
+        
+        let current_dir = env::current_dir().ok()?;
+        let mut path = current_dir.as_path();
+        
+        loop {
+            let git_dir = path.join(".git");
+            if git_dir.exists() {
+                return Some(path.to_string_lossy().to_string());
+            }
+            
+            // Move up to parent directory
+            path = path.parent()?;
+        }
     }
 }
