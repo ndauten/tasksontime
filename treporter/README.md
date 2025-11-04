@@ -24,29 +24,49 @@ The tool is **fully functional** and ready for production use with these capabil
 
 ## Quick Start
 
-1. **Clone and Setup**
+1. **Initialize Configuration**
    ```bash
-   cd chronopulse
-   make build
+   # Create a default config.toml with helpful comments
+   chronopulse init
+   
+   # Or specify a custom location
+   chronopulse init -o my-config.toml
    ```
 
-2. **Test Without API Keys** (works immediately!)
+2. **Configure Your Project**
    ```bash
-   ./target/release/chronopulse test
-   ./target/release/chronopulse config
+   # Edit the generated config.toml to:
+   # - Set your project name and description
+   # - Enable data sources (GitLab, GitHub, local files)
+   # - Add repositories to track
+   # - Configure LLM settings
+   
+   # See docs/configuration-guide.md for detailed configuration help
    ```
 
-3. **Generate Reports** (works without LLM API keys!)
+3. **Set Environment Variables** (optional, for GitHub/GitLab)
    ```bash
-   # Collect data and generate all reports for last 30 days
-   ./target/release/chronopulse --since 2024-12-01 --until 2024-12-31 all
+   export GITLAB_TOKEN="your-token"
+   export GITLAB_USERNAME="your-username"
+   export GITHUB_TOKEN="your-token"
+   export GITHUB_USERNAME="your-username"
+   ```
+
+4. **Test Your Configuration**
+   ```bash
+   chronopulse test
+   chronopulse config
+   ```
+
+5. **Generate Reports**
+   ```bash
+   # Collect data and generate all reports for a date range
+   chronopulse all --from 2024-12-01 --to 2024-12-31
    
    # Step by step workflow
-   ./target/release/chronopulse collect --output data.json
-   ./target/release/chronopulse all --data-file data.json
+   chronopulse collect --output data.json
+   chronopulse all --data-file data.json
    ```
-
-4. **Optional: Configure API Keys** (for enhanced LLM reports)
    ```bash
    cp .env.example .env
    # Edit .env with your API tokens for enhanced reports

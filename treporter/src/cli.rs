@@ -106,6 +106,17 @@ pub enum Commands {
     
     /// Test data collection without generating reports
     Test,
+    
+    /// Initialize a new config.toml with default settings
+    Init {
+        /// Output path for the config file
+        #[arg(short, long, default_value = "config.toml")]
+        output: String,
+        
+        /// Force overwrite if file exists
+        #[arg(short, long)]
+        force: bool,
+    },
 }
 
 impl Cli {

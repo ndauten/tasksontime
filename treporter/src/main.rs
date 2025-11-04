@@ -6,6 +6,8 @@ mod generators;
 mod cli;
 mod preprocessor;
 mod ollama;
+mod simple_pipeline;
+mod direct_file_processor;
 
 use anyhow::Result;
 use clap::Parser;
@@ -21,7 +23,14 @@ async fn main() -> Result<()> {
     
     let cli = Cli::parse();
     
-    // Load configuration
+    // Handle init command first (doesn't need config file)
+    if let Commands::Init { ref output, force } = cli.command {
+        println!("🚀 Initializing ChronoPulse configuration...");
+        Config::write_default(output, force)?;
+        return Ok(());
+    }
+    
+    // Load configuration for all other commands
     let config = Config::load(&cli.config)?;
     
     if cli.verbose {
@@ -30,6 +39,11 @@ async fn main() -> Result<()> {
     }
     
     match cli.command {
+        Commands::Init { .. } => {
+            // Already handled above
+            unreachable!()
+        },
+        
         Commands::Config => {
             println!("📋 Configuration:");
             println!("  Project: {}", config.project.name);
@@ -175,6 +189,45 @@ async fn main() -> Result<()> {
             let generator = ReportGenerator::new(config)?;
             let analysis_path = generator.generate_architectural_analysis_with_output(&data, output.as_deref()).await?;
             println!("🏗️  Architectural analysis generated: {}", analysis_path);
+        },
+        
+        Commands::NewReport { ref data_file, ref data_files, ref output } => {
+            println!("🚀 Starting new simple pipeline...");
+            
+            let data = match (data_file, data_files.is_empty()) {
+                (Some(file), true) => {
+                    println!("📂 Loading data from: {}", file);
+                    CollectedData::load_from_file(file)?
+                },
+                (None, false) => {
+                    println!("📂 Loading and merging data from {} files...", data_files.len());
+                    for file in data_files {
+                        println!("  - {}", file);
+                    }
+                    CollectedData::load_and_merge_files(data_files)?
+                },
+                (Some(_), false) => {
+                    return Err(anyhow::anyhow!("Cannot specify both --data-file and --data-files"));
+                },
+                (None, true) => {
+                    let (start_date, end_date) = cli.parse_date_range()?;
+                    println!("🔍 Collecting fresh data...");
+                    let collector = DataCollector::new(config.clone());
+                    collector.collect(start_date, end_date).await?
+                }
+            };
+            
+            let pipeline = simple_pipeline::SimplePipeline::new(true);
+            let report_path = pipeline.generate_report(&data, output.as_deref()).await?;
+            println!("📄 New report generated: {}", report_path);
+        },
+        
+        Commands::DirectAnalysis { ref input, ref output } => {
+            println!("🎯 Starting direct file analysis...");
+            
+            let processor = direct_file_processor::DirectFileProcessor::new(cli.verbose);
+            let analysis_path = processor.process_file(input, output.as_deref()).await?;
+            println!("📄 Direct analysis generated: {}", analysis_path);
         },
     }
     
