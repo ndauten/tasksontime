@@ -1,11 +1,11 @@
-// Comprehensive integration tests for TReporter
+// Comprehensive integration tests for ChronoPulse
 use std::env;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
-use treporter::collectors::gitlab::GitLabCollector;
-use treporter::config::{GitLabConfig, GitHubConfig, CollectionConfig, Config};
-use treporter::types::{CollectedData, GitLabData, GitHubData, CollectionMetadata};
-use treporter::generators::ReportGenerator;
+use chronopulse::collectors::gitlab::GitLabCollector;
+use chronopulse::config::{GitLabConfig, GitHubConfig, CollectionConfig, Config};
+use chronopulse::types::{CollectedData, GitLabData, GitHubData, CollectionMetadata};
+use chronopulse::generators::ReportGenerator;
 
 // Test constants
 const TEST_DATE_START: &str = "2025-06-01T00:00:00Z";
@@ -391,7 +391,7 @@ mod tests {
         }));
         
         // Add local git commit
-        data.git_commits.push(treporter::types::GitCommitData {
+        data.git_commits.push(chronopulse::types::GitCommitData {
             hash: "ghi012".to_string(),
             message: "Local commit".to_string(),
             author_name: "Local User".to_string(),

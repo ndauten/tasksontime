@@ -7,9 +7,18 @@ pub struct Config {
     pub collection: CollectionConfig,
     pub data_sources: DataSourcesConfig,
     pub repositories: Vec<RepositoryConfig>,
+    pub repository_discovery: Option<RepositoryDiscoveryConfig>,
     pub llm: LlmConfig,
     pub templates: TemplatesConfig,
     pub output: OutputConfig,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct RepositoryDiscoveryConfig {
+    pub enabled: bool,
+    pub search_paths: Vec<String>,
+    pub max_depth: Option<usize>,
+    pub ignore_patterns: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -259,6 +268,34 @@ include_commits = true
 # include_merge_requests = true
 
 # ============================================================================
+# REPOSITORY DISCOVERY (Optional)
+# ============================================================================
+# Automatically discover git repositories in specified directories
+# Useful if you have multiple related repos in a workspace
+
+# [repository_discovery]
+# enabled = false
+# # Paths to search for git repositories
+# search_paths = [
+#     "./repos",           # Search in repos/ subdirectory
+#     "~/projects",        # Search in home projects directory
+#     "/path/to/workspace" # Any absolute or relative path
+# ]
+# # Maximum depth to search (prevents deep recursion)
+# max_depth = 3
+# # Directory patterns to ignore (regex)
+# ignore_patterns = [
+#     "node_modules",
+#     "vendor",
+#     ".venv",
+#     "venv",
+#     "__pycache__",
+#     "target",
+#     "build",
+#     "dist"
+# ]
+
+# ============================================================================
 # LLM CONFIGURATION
 # ============================================================================
 [llm]
@@ -391,5 +428,118 @@ filename_template = "{{project_name}}_{{template_name}}_{{date}}"
             // Move up to parent directory
             path = path.parent()?;
         }
+    }
+    
+    /// Discover git repositories in configured search paths
+    pub fn discover_repositories(&self) -> Vec<RepositoryConfig> {
+        let discovery = match &self.repository_discovery {
+            Some(d) if d.enabled => d,
+            _ => return vec![],
+        };
+        
+        let mut discovered = Vec::new();
+        let max_depth = discovery.max_depth.unwrap_or(3);
+        let ignore_patterns: Vec<regex::Regex> = discovery.ignore_patterns
+            .as_ref()
+            .map(|patterns| {
+                patterns.iter()
+                    .filter_map(|p| regex::Regex::new(p).ok())
+                    .collect()
+            })
+            .unwrap_or_default();
+        
+        for search_path in &discovery.search_paths {
+            let expanded_path = shellexpand::tilde(search_path).to_string();
+            if let Ok(repos) = Self::find_git_repos(&expanded_path, max_depth, &ignore_patterns) {
+                discovered.extend(repos);
+            }
+        }
+        
+        discovered
+    }
+    
+    /// Recursively find git repositories in a directory
+    fn find_git_repos(
+        path: &str,
+        max_depth: usize,
+        ignore_patterns: &[regex::Regex],
+    ) -> std::io::Result<Vec<RepositoryConfig>> {
+        Self::find_git_repos_recursive(path, max_depth, 0, ignore_patterns)
+    }
+    
+    fn find_git_repos_recursive(
+        path: &str,
+        max_depth: usize,
+        current_depth: usize,
+        ignore_patterns: &[regex::Regex],
+    ) -> std::io::Result<Vec<RepositoryConfig>> {
+        use std::fs;
+        use std::path::Path;
+        
+        if current_depth > max_depth {
+            return Ok(vec![]);
+        }
+        
+        let path_obj = Path::new(path);
+        if !path_obj.exists() || !path_obj.is_dir() {
+            return Ok(vec![]);
+        }
+        
+        // Check if current directory should be ignored
+        if let Some(dir_name) = path_obj.file_name().and_then(|n| n.to_str()) {
+            for pattern in ignore_patterns {
+                if pattern.is_match(dir_name) {
+                    return Ok(vec![]);
+                }
+            }
+        }
+        
+        let mut repos = Vec::new();
+        
+        // Check if this directory is a git repo
+        if path_obj.join(".git").exists() {
+            let name = path_obj
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unknown")
+                .to_string();
+            
+            repos.push(RepositoryConfig {
+                name,
+                platform: "local".to_string(),
+                group: None,
+                project_id: None,
+                path: Some(path.to_string()),
+                include_issues: None,
+                include_merge_requests: None,
+                include_commits: Some(true),
+                include_wiki: None,
+            });
+            
+            // Don't recurse into discovered repos
+            return Ok(repos);
+        }
+        
+        // Recurse into subdirectories
+        if let Ok(entries) = fs::read_dir(path_obj) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                if let Ok(file_type) = entry.file_type() {
+                    if file_type.is_dir() {
+                        if let Some(subpath) = entry.path().to_str() {
+                            if let Ok(mut subrepos) = Self::find_git_repos_recursive(
+                                subpath,
+                                max_depth,
+                                current_depth + 1,
+                                ignore_patterns,
+                            ) {
+                                repos.append(&mut subrepos);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        Ok(repos)
     }
 }
