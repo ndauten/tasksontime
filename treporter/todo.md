@@ -3,8 +3,11 @@
 Quick list:
 
 Tooling:
-- [x] Eliminate warnings 2025-11-4 ✅ 
-- [x] add option to pull tokens from some default config location: maybe ~/.chronopulse? ✅ 
+- [x] Eliminate warnings 2025-11-4 ✅
+
+Setup:
+- [x] add option to pull tokens from some default config location: maybe ~/.chronopulse? ✅
+- [x] enhance setup wizard with project configuration 2025-11-4 ✅
 
 Collect+Summarize:
 - [ ] All branches vs single default master for repositories
@@ -13,6 +16,56 @@ Collect+Summarize:
 ## Activities
 
 ## Bot Log
+
+### 2025-11-04 (Latest): Enhanced Setup Wizard with Project Configuration
+
+**Completed Tasks:**
+
+1. **✅ Enhanced Setup Wizard - Complete Project Setup**
+   - Extended `chronopulse setup` to handle both global credentials AND project configuration
+   - Added interactive menu to choose: global only, project only, or both
+   - New flags: `--global` (credentials only), `--project` (project only)
+   - Project setup wizard includes:
+     * Project name and description prompts
+     * Data source selection (GitLab/GitHub/local files) with yes/no prompts
+     * Repository discovery configuration (paths, max depth)
+     * LLM provider selection (can inherit from global config)
+     * Multi-line input for repository search paths
+     * Automatic git repository detection
+   - Generates complete, production-ready `config.toml` with user choices
+   - Made `Config::find_git_root()` public for cross-module use
+   - Added `prompt_yes_no()` helper for boolean prompts
+   - Smart defaults pulled from global config when available
+   - Updated README with "Complete Setup" section highlighting one-command setup
+   - Commit: `41a4f73`
+
+**Benefits:**
+- **Complete onboarding in one command**: `chronopulse setup`
+- **No manual config editing required** for basic setup
+- **Interactive & user-friendly**: Clear prompts with sensible defaults
+- **Flexible**: Can setup global, project, or both
+- **Validates input**: Prevents invalid configurations
+- **Smart defaults**: Reuses global config settings when appropriate
+
+**User Experience:**
+```bash
+# Complete setup in one command
+$ chronopulse setup
+🔧 ChronoPulse Setup Wizard
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+What would you like to set up?
+  1) Global credentials only (~/.chronopulse/config.toml)
+  2) Project configuration only (./config.toml)
+  3) Both global and project
+Choice [3]:
+```
+
+**Next Steps:**
+- Consider adding validation for tokens (test GitLab/GitHub API)
+- Add option to import existing .env files
+- Support updating existing configurations (not just overwrite)
+
+---
 
 ### 2025-11-04: Warning Elimination & Global Credential Management
 

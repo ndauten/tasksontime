@@ -24,10 +24,31 @@ The tool is **fully functional** and ready for production use with these capabil
 
 ## Quick Start
 
-1. **Set Up Global Credentials** (Recommended - one-time setup)
+### Complete Setup (Recommended)
+
+**One Command Setup** - Interactive wizard for everything:
+```bash
+chronopulse setup
+```
+
+This wizard will guide you through:
+1. **Global Credentials**: GitLab, GitHub tokens, LLM provider (saved to `~/.chronopulse/config.toml`)
+2. **Project Configuration**: Project name, data sources, repositories (creates `./config.toml`)
+
+**Options:**
+```bash
+chronopulse setup              # Setup both global and project (interactive menu)
+chronopulse setup --global     # Global credentials only
+chronopulse setup --project    # Project configuration only
+chronopulse setup --show       # View current global configuration
+```
+
+### Manual Setup (Alternative)
+
+1. **Set Up Global Credentials**
    ```bash
    # Interactive wizard to configure credentials globally
-   chronopulse setup
+   chronopulse setup --global
    
    # View your current global configuration
    chronopulse setup --show
@@ -42,20 +63,19 @@ The tool is **fully functional** and ready for production use with these capabil
 
 2. **Initialize Project Configuration**
    ```bash
-   # Create a default config.toml with helpful comments
-   # Automatically detects git repository if run from within one
+   # Interactive wizard (recommended)
+   chronopulse setup --project
+   
+   # Or use template-based init
    chronopulse init
    
    # Or specify a custom location
    chronopulse init -o my-config.toml
    ```
    
-   **Smart Repository Detection**: When you run `chronopulse init` from within a git repository, it automatically:
-   - Detects the repository root (searches up for `.git`)
-   - Sets the repository name and path in the config
-   - Confirms detection with: `✓ Detected git repository at: /path/to/repo`
+   **Smart Repository Detection**: Automatically detects git repository root when generating config
 
-3. **Configure Your Project**
+3. **Test Your Configuration**
    ```bash
    # Edit the generated config.toml to:
    # - Set your project name and description
