@@ -624,16 +624,63 @@ filename_template = "{{project}}_{{type}}_{{date}}"
                 if discovered.is_empty() {
                     println!("   No additional repositories found.");
                 } else {
-                    println!("   Found {} repositories:", discovered.len());
+                    println!("   Found {} repositories", discovered.len());
+                    println!();
+                    
+                    // Ask user about each discovered repository
+                    let mut selected_repos = Vec::new();
                     for repo in &discovered {
                         if let Some(path) = &repo.path {
-                            println!("   ✓ {} ({})", repo.name, path);
-                        } else {
-                            println!("   ✓ {}", repo.name);
+                            let add = prompt_yes_no(
+                                &format!("Add repository '{}' ({})?", repo.name, path),
+                                true
+                            )?;
+                            
+                            if add {
+                                selected_repos.push(repo.clone());
+                                println!("   ✓ Added {}", repo.name);
+                            } else {
+                                println!("   ⊘ Skipped {}", repo.name);
+                            }
                         }
                     }
-                    println!();
-                    println!("   Note: These will be automatically included when you run 'chronopulse collect'");
+                    
+                    if !selected_repos.is_empty() {
+                        println!();
+                        println!("📝 Adding {} selected repositories to config...", selected_repos.len());
+                        
+                        // Read the current config file
+                        let mut config_content = std::fs::read_to_string(config_path)?;
+                        
+                        // Find where to insert the new repositories (after the existing [[repositories]] section)
+                        let mut new_repos_section = String::new();
+                        for repo in &selected_repos {
+                            if let Some(path) = &repo.path {
+                                new_repos_section.push_str(&format!(r###"
+[[repositories]]
+name = "{}"
+platform = "local"
+path = "{}"
+include_commits = true
+
+"###, repo.name, path));
+                            }
+                        }
+                        
+                        // Insert after the first [[repositories]] section
+                        if let Some(pos) = config_content.find("# Automatic repository discovery") {
+                            config_content.insert_str(pos, &new_repos_section);
+                        } else if let Some(pos) = config_content.find("[llm]") {
+                            config_content.insert_str(pos, &new_repos_section);
+                        }
+                        
+                        // Write updated config
+                        std::fs::write(config_path, config_content)?;
+                        println!("   ✓ Configuration updated with selected repositories");
+                    } else {
+                        println!();
+                        println!("   No repositories selected. Discovery will run automatically during collection.");
+                    }
                 }
             }
         }
