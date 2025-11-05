@@ -154,7 +154,70 @@ model = "llama3.2"
     }
     
     /// Interactive setup wizard for global credentials
-    pub fn interactive_setup(force: bool) -> Result<()> {
+    pub fn interactive_setup(force: bool, project_only: bool, global_only: bool) -> Result<()> {
+        // Determine what to set up
+        let setup_global = !project_only;
+        let setup_project = !global_only;
+        
+        // If neither flag is set, show menu
+        let (do_global, do_project) = if !project_only && !global_only {
+            println!("🔧 ChronoPulse Setup Wizard");
+            println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            println!();
+            println!("What would you like to set up?");
+            println!("  1) Global credentials only (~/.chronopulse/config.toml)");
+            println!("  2) Project configuration only (./config.toml)");
+            println!("  3) Both global and project");
+            println!();
+            
+            let choice = prompt_with_default("Choice", "3")?;
+            
+            match choice.as_str() {
+                "1" => (true, false),
+                "2" => (false, true),
+                _ => (true, true),
+            }
+        } else {
+            (setup_global, setup_project)
+        };
+        
+        println!();
+        
+        // Global credentials setup
+        if do_global {
+            Self::setup_global_credentials(force)?;
+        }
+        
+        // Project configuration setup
+        if do_project {
+            Self::setup_project_configuration(force)?;
+        }
+        
+        println!();
+        println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        println!("✨ Setup complete!");
+        println!();
+        
+        if do_global && do_project {
+            println!("Next steps:");
+            println!("  1. Review and edit config.toml for project-specific settings");
+            println!("  2. Run 'chronopulse test' to verify your configuration");
+            println!("  3. Run 'chronopulse collect' to start collecting data");
+        } else if do_global {
+            println!("Next steps:");
+            println!("  1. Run 'chronopulse setup --project' to set up a project");
+            println!("  2. Or run 'chronopulse init' in your project directory");
+        } else {
+            println!("Next steps:");
+            println!("  1. Run 'chronopulse test' to verify your configuration");
+            println!("  2. Run 'chronopulse collect' to start collecting data");
+        }
+        
+        Ok(())
+    }
+    
+    /// Set up global credentials
+    fn setup_global_credentials(force: bool) -> Result<()> {
         let path = Self::global_config_path()?;
         
         if path.exists() && !force {
@@ -283,13 +346,269 @@ model = "llama3.2"
         // Save the configuration
         config.save()?;
         
+        Ok(())
+    }
+    
+    /// Set up project configuration interactively
+    fn setup_project_configuration(force: bool) -> Result<()> {
+        use crate::config::Config;
+        use std::path::Path;
+        
+        let config_path = "config.toml";
+        
+        if Path::new(config_path).exists() && !force {
+            println!("⚠️  Project config already exists at: {}", config_path);
+            print!("Overwrite? (y/N): ");
+            io::stdout().flush()?;
+            
+            let mut response = String::new();
+            io::stdin().read_line(&mut response)?;
+            
+            if !response.trim().eq_ignore_ascii_case("y") {
+                println!("Skipping project setup.");
+                return Ok(());
+            }
+        }
+        
         println!();
-        println!("✨ Setup complete!");
+        println!("📋 Project Configuration Setup");
+        println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         println!();
-        println!("Next steps:");
-        println!("  1. Run 'chronopulse init' in your project directory");
-        println!("  2. Edit the generated config.toml for project-specific settings");
-        println!("  3. Run 'chronopulse collect' to start collecting data");
+        
+        // Detect git repository
+        let repo_path = Config::find_git_root().unwrap_or_else(|| ".".to_string());
+        let repo_name = std::path::Path::new(&repo_path)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("My Project");
+        
+        // Project information
+        println!("📁 Project Information");
+        println!();
+        let project_name = prompt_with_default("Project Name", repo_name)?;
+        let project_desc = prompt_with_default("Project Description", "Automated project reporting")?;
+        
+        println!();
+        
+        // Data sources
+        println!("📦 Data Sources");
+        println!();
+        println!("Which data sources would you like to enable?");
+        
+        let enable_gitlab = prompt_yes_no("Enable GitLab?", true)?;
+        let enable_github = prompt_yes_no("Enable GitHub?", false)?;
+        let enable_local_files = prompt_yes_no("Enable Local Files?", true)?;
+        
+        println!();
+        
+        // Repository discovery
+        println!("🔍 Repository Discovery");
+        println!();
+        let enable_discovery = prompt_yes_no("Enable automatic repository discovery?", false)?;
+        
+        let mut search_paths = vec![];
+        let mut max_depth = 3;
+        
+        if enable_discovery {
+            println!();
+            println!("Enter search paths (one per line, empty line to finish):");
+            println!("Examples: ~/projects, /work/repos, .");
+            
+            loop {
+                print!("Search path: ");
+                io::stdout().flush()?;
+                let mut path = String::new();
+                io::stdin().read_line(&mut path)?;
+                let path = path.trim();
+                
+                if path.is_empty() {
+                    break;
+                }
+                search_paths.push(path.to_string());
+            }
+            
+            if search_paths.is_empty() {
+                search_paths.push(".".to_string());
+            }
+            
+            let depth_str = prompt_with_default("Maximum depth to search", "3")?;
+            max_depth = depth_str.parse().unwrap_or(3);
+        }
+        
+        println!();
+        
+        // LLM Configuration  
+        println!("🤖 LLM Provider");
+        println!();
+        println!("Choose LLM provider:");
+        println!("  1) Use global config settings");
+        println!("  2) Ollama (local)");
+        println!("  3) OpenAI");
+        println!("  4) Anthropic");
+        println!();
+        
+        let llm_choice = prompt_with_default("LLM Provider", "1")?;
+        
+        let (llm_provider, llm_model) = match llm_choice.as_str() {
+            "2" => ("ollama".to_string(), prompt_with_default("Model", "llama3.2")?),
+            "3" => ("openai".to_string(), prompt_with_default("Model", "gpt-4")?),
+            "4" => ("anthropic".to_string(), prompt_with_default("Model", "claude-3-opus-20240229")?),
+            _ => {
+                // Use global config - try to load it
+                match GlobalConfig::load() {
+                    Ok(global) => {
+                        let provider = global.llm.as_ref()
+                            .and_then(|l| l.provider.clone())
+                            .unwrap_or_else(|| "ollama".to_string());
+                        
+                        let model = match provider.as_str() {
+                            "ollama" => global.llm.as_ref()
+                                .and_then(|l| l.ollama.as_ref())
+                                .and_then(|o| o.model.clone())
+                                .unwrap_or_else(|| "llama3.2".to_string()),
+                            "openai" => global.llm.as_ref()
+                                .and_then(|l| l.openai.as_ref())
+                                .and_then(|o| o.model.clone())
+                                .unwrap_or_else(|| "gpt-4".to_string()),
+                            "anthropic" => global.llm.as_ref()
+                                .and_then(|l| l.anthropic.as_ref())
+                                .and_then(|a| a.model.clone())
+                                .unwrap_or_else(|| "claude-3-opus-20240229".to_string()),
+                            _ => "llama3.2".to_string(),
+                        };
+                        
+                        (provider, model)
+                    },
+                    Err(_) => ("ollama".to_string(), "llama3.2".to_string()),
+                }
+            }
+        };
+        
+        println!();
+        println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        println!("📝 Generating config.toml...");
+        
+        // Build the configuration content
+        let mut config_content = String::new();
+        
+        config_content.push_str(&format!(r###"# ChronoPulse Project Configuration
+
+[project]
+name = "{}"
+description = "{}"
+
+[date_range]
+default_period = "current_month"
+
+[collection]
+include_diffs = false
+max_diff_size = 10000
+
+[data_sources]
+
+"###, project_name, project_desc));
+        
+        // GitLab configuration
+        if enable_gitlab {
+            config_content.push_str(r###"[data_sources.gitlab]
+enabled = true
+token_env = "GITLAB_TOKEN"
+username_env = "GITLAB_USERNAME"
+base_url = "https://gitlab.com"
+include_issues = true
+include_merge_requests = true
+include_commits = true
+include_wiki = false
+include_comments = true
+
+"###);
+        }
+        
+        // GitHub configuration
+        if enable_github {
+            config_content.push_str(r###"[data_sources.github]
+enabled = true
+token_env = "GITHUB_TOKEN"
+username_env = "GITHUB_USERNAME"
+include_issues = true
+include_pull_requests = true
+include_commits = true
+include_wiki = false
+
+"###);
+        }
+        
+        // Local files configuration
+        if enable_local_files {
+            config_content.push_str(r###"[data_sources.local_files]
+enabled = true
+paths = ["./notes/**/*.md", "./docs/**/*.md"]
+time_patterns = [
+    '\d{4}-\d{2}-\d{2}',
+    '(?i)(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2},?\s+\d{4}',
+]
+
+"###);
+        }
+        
+        // Repository configuration
+        config_content.push_str(&format!(r###"# Repositories to analyze
+[[repositories]]
+name = "{}"
+platform = "local"
+path = "{}"
+include_commits = true
+
+"###, project_name, repo_path));
+        
+        // Repository discovery
+        if enable_discovery && !search_paths.is_empty() {
+            config_content.push_str(&format!(r###"# Automatic repository discovery
+[repository_discovery]
+enabled = true
+search_paths = [{}]
+max_depth = {}
+ignore_patterns = ["node_modules", "vendor", ".venv", "target", "build", "dist"]
+
+"###, 
+                search_paths.iter().map(|p| format!("\"{}\"", p)).collect::<Vec<_>>().join(", "),
+                max_depth
+            ));
+        }
+        
+        // LLM configuration
+        config_content.push_str(&format!(r###"[llm]
+provider = "{}"
+model = "{}"
+api_key_env = "OPENAI_API_KEY"
+max_tokens = 4000
+temperature = 0.7
+
+[templates]
+
+[templates.monthly_report]
+path = "templates/monthly_report.md"
+output_format = "markdown"
+sections = ["summary", "accomplishments", "metrics", "challenges", "next_steps"]
+
+[templates.group_slides]
+path = "templates/group_slides.md"
+output_format = "marp"
+sections = ["highlights", "metrics", "status", "priorities"]
+
+[output]
+base_directory = "./reports"
+date_format = "%Y-%m"
+filename_template = "{{project}}_{{type}}_{{date}}"
+"###, llm_provider, llm_model));
+        
+        // Write the file
+        std::fs::write(config_path, config_content)?;
+        println!("✓ Created project configuration: {}", config_path);
+        
+        if repo_path != "." {
+            println!("✓ Detected git repository at: {}", repo_path);
+        }
         
         Ok(())
     }
@@ -426,6 +745,23 @@ fn prompt_with_default(prompt: &str, default: &str) -> Result<String> {
         Ok(default.to_string())
     } else {
         Ok(trimmed.to_string())
+    }
+}
+
+/// Helper function to prompt for yes/no with default
+fn prompt_yes_no(prompt: &str, default: bool) -> Result<bool> {
+    let default_str = if default { "Y/n" } else { "y/N" };
+    print!("{} [{}]: ", prompt, default_str);
+    io::stdout().flush()?;
+    
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+    let trimmed = input.trim().to_lowercase();
+    
+    if trimmed.is_empty() {
+        Ok(default)
+    } else {
+        Ok(trimmed.starts_with('y'))
     }
 }
 

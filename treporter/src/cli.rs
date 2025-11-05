@@ -118,7 +118,7 @@ pub enum Commands {
         force: bool,
     },
     
-    /// Set up global credentials in ~/.chronopulse/config.toml
+    /// Set up global credentials and/or project configuration
     Setup {
         /// Force overwrite if file exists
         #[arg(short, long)]
@@ -127,6 +127,14 @@ pub enum Commands {
         /// Show current global configuration
         #[arg(short, long)]
         show: bool,
+        
+        /// Set up project configuration only (skip global credentials)
+        #[arg(short, long)]
+        project: bool,
+        
+        /// Set up global credentials only (skip project setup)
+        #[arg(short, long)]
+        global: bool,
     },
 }
 

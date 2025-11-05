@@ -31,11 +31,11 @@ async fn main() -> Result<()> {
             Config::write_default(output, *force)?;
             return Ok(());
         },
-        Commands::Setup { force, show } => {
+        Commands::Setup { force, show, project, global } => {
             if *show {
                 credentials::GlobalConfig::show()?;
             } else {
-                credentials::GlobalConfig::interactive_setup(*force)?;
+                credentials::GlobalConfig::interactive_setup(*force, *project, *global)?;
             }
             return Ok(());
         },

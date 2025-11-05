@@ -414,7 +414,7 @@ filename_template = "{{project_name}}_{{template_name}}_{{date}}"
     }
     
     /// Find the git repository root by searching up directories
-    fn find_git_root() -> Option<String> {
+    pub fn find_git_root() -> Option<String> {
         use std::env;
         
         
