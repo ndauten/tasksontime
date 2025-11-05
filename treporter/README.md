@@ -24,7 +24,23 @@ The tool is **fully functional** and ready for production use with these capabil
 
 ## Quick Start
 
-1. **Initialize Configuration**
+1. **Set Up Global Credentials** (Recommended - one-time setup)
+   ```bash
+   # Interactive wizard to configure credentials globally
+   chronopulse setup
+   
+   # View your current global configuration
+   chronopulse setup --show
+   ```
+   
+   This creates `~/.chronopulse/config.toml` with your:
+   - GitLab/GitHub tokens and usernames
+   - LLM provider settings (Ollama/OpenAI/Anthropic)
+   - All credentials stored securely, outside project repos
+   
+   **Note**: You can skip this and use environment variables instead (see Alternative Setup below)
+
+2. **Initialize Project Configuration**
    ```bash
    # Create a default config.toml with helpful comments
    # Automatically detects git repository if run from within one
@@ -39,23 +55,16 @@ The tool is **fully functional** and ready for production use with these capabil
    - Sets the repository name and path in the config
    - Confirms detection with: `✓ Detected git repository at: /path/to/repo`
 
-2. **Configure Your Project**
+3. **Configure Your Project**
    ```bash
    # Edit the generated config.toml to:
    # - Set your project name and description
    # - Enable data sources (GitLab, GitHub, local files)
    # - Add additional repositories to track
-   # - Configure LLM settings
+   # - Configure LLM settings (if not using global config)
    
    # See docs/configuration-guide.md for detailed configuration help
-   ```
-
-3. **Set Environment Variables** (optional, for GitHub/GitLab)
-   ```bash
-   export GITLAB_TOKEN="your-token"
-   export GITLAB_USERNAME="your-username"
-   export GITHUB_TOKEN="your-token"
-   export GITHUB_USERNAME="your-username"
+   # See docs/credential-management.md for credential options
    ```
 
 4. **Test Your Configuration**
@@ -73,10 +82,25 @@ The tool is **fully functional** and ready for production use with these capabil
    chronopulse collect --output data.json
    chronopulse all --data-file data.json
    ```
-   ```bash
-   cp .env.example .env
-   # Edit .env with your API tokens for enhanced reports
-   ```
+
+### Alternative Setup (Environment Variables)
+
+If you prefer not to use global credentials, you can set environment variables:
+
+```bash
+export GITLAB_TOKEN="your-token"
+export GITLAB_USERNAME="your-username"
+export GITHUB_TOKEN="your-token"
+export GITHUB_USERNAME="your-username"
+```
+
+Or create a `.env` file in your project directory (add to `.gitignore`):
+```bash
+cp .env.example .env
+# Edit .env with your API tokens
+```
+
+**Credential Priority**: Environment variables > `.env` file > `~/.chronopulse/config.toml`
 
 ## Example Output
 
@@ -135,6 +159,16 @@ The tool is configured via `config.toml`. Key sections include:
 ## Commands
 
 ```bash
+# Setup global credentials (one-time)
+chronopulse setup                    # Interactive wizard
+chronopulse setup --show             # View current global config
+chronopulse setup --force            # Overwrite existing config
+
+# Initialize project
+chronopulse init                     # Create config.toml in current directory
+chronopulse init -o custom.toml      # Custom output path
+chronopulse init --force             # Overwrite existing config
+
 # Show configuration
 chronopulse config
 
@@ -154,7 +188,7 @@ chronopulse group-slides [--data-file existing_data.json]
 chronopulse all [--data-file existing_data.json]
 
 # Specify custom date range
-chronopulse all --since 2025-01-01 --until 2025-01-31
+chronopulse all --from 2025-01-01 --to 2025-01-31
 ```
 
 ## Data Sources
