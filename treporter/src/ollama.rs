@@ -1,7 +1,6 @@
 use anyhow::Result;
 use reqwest::Client;
 use serde_json::{json, Value};
-use tokio::time::{sleep, Duration};
 
 pub struct OllamaClient {
     client: Client,
@@ -56,11 +55,13 @@ impl OllamaClient {
         Ok(content.to_string())
     }
 
+    #[allow(dead_code)]
     pub async fn generate_with_system(&self, system_prompt: &str, user_prompt: &str) -> Result<String> {
         let combined_prompt = format!("{}\n\nUser: {}\nAssistant:", system_prompt, user_prompt);
         self.generate(&combined_prompt).await
     }
 
+    #[allow(dead_code)]
     pub async fn health_check(&self) -> Result<bool> {
         let url = format!("{}/api/tags", self.base_url);
         

@@ -105,6 +105,7 @@ impl GlobalConfig {
     }
     
     /// Generate a template global config with helpful comments
+    #[allow(dead_code)]
     pub fn generate_template() -> String {
         r#"# ChronoPulse Global Configuration
 # This file contains credentials and default settings used across all projects
@@ -429,6 +430,7 @@ fn prompt_with_default(prompt: &str, default: &str) -> Result<String> {
 }
 
 /// Get a credential value with priority: env var > project .env > global config
+#[allow(dead_code)]
 pub fn get_credential(
     env_var_name: &str,
     global_value: Option<&String>,

@@ -39,7 +39,7 @@ impl ReportGenerator {
 
     pub async fn generate_group_slides(&self, data: &CollectedData) -> Result<String> {
         let template_config = &self.config.templates.group_slides;
-        let template_content = self.load_template(&template_config.path)?;
+        let _template_content = self.load_template(&template_config.path)?;
         
         println!("🤖 Generating group meeting slides using LLM...");
         let slides = self.llm_client

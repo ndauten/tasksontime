@@ -106,7 +106,7 @@ impl DataPreprocessor {
             let mut infrastructure = Vec::new();
             let mut other = Vec::new();
 
-            for commit in repo_commits {
+            for commit in &repo_commits {
                 let summary = self.extract_commit_summary(commit);
                 let category = self.categorize_commit(&summary);
                 
@@ -122,7 +122,11 @@ impl DataPreprocessor {
             if !features.is_empty() {
                 content.push_str("**New Features:**\n");
                 for feature in features {
-                    content.push_str(&format!("- {}\n", feature.title));
+                    content.push_str(&format!("- `{}` - {} ({} files, +{} -{} lines)\n", 
+                        feature.id, feature.title, feature.files_changed, feature.additions, feature.deletions));
+                    if !feature.files_list.is_empty() {
+                        content.push_str(&format!("  Files: {}\n", feature.files_list));
+                    }
                 }
                 content.push('\n');
             }
@@ -130,7 +134,11 @@ impl DataPreprocessor {
             if !infrastructure.is_empty() {
                 content.push_str("**Infrastructure & Build:**\n");
                 for infra in infrastructure {
-                    content.push_str(&format!("- {}\n", infra.title));
+                    content.push_str(&format!("- `{}` - {} ({} files, +{} -{} lines)\n", 
+                        infra.id, infra.title, infra.files_changed, infra.additions, infra.deletions));
+                    if !infra.files_list.is_empty() {
+                        content.push_str(&format!("  Files: {}\n", infra.files_list));
+                    }
                 }
                 content.push('\n');
             }
@@ -138,7 +146,11 @@ impl DataPreprocessor {
             if !fixes.is_empty() {
                 content.push_str("**Bug Fixes:**\n");
                 for fix in fixes {
-                    content.push_str(&format!("- {}\n", fix.title));
+                    content.push_str(&format!("- `{}` - {} ({} files, +{} -{} lines)\n", 
+                        fix.id, fix.title, fix.files_changed, fix.additions, fix.deletions));
+                    if !fix.files_list.is_empty() {
+                        content.push_str(&format!("  Files: {}\n", fix.files_list));
+                    }
                 }
                 content.push('\n');
             }
@@ -146,7 +158,8 @@ impl DataPreprocessor {
             if !docs.is_empty() {
                 content.push_str("**Documentation:**\n");
                 for doc in docs {
-                    content.push_str(&format!("- {}\n", doc.title));
+                    content.push_str(&format!("- `{}` - {} ({} files, +{} -{} lines)\n", 
+                        doc.id, doc.title, doc.files_changed, doc.additions, doc.deletions));
                 }
                 content.push('\n');
             }
@@ -154,10 +167,26 @@ impl DataPreprocessor {
             if !other.is_empty() && other.len() <= 5 {
                 content.push_str("**Other Changes:**\n");
                 for change in other {
-                    content.push_str(&format!("- {}\n", change.title));
+                    content.push_str(&format!("- `{}` - {} ({} files, +{} -{} lines)\n", 
+                        change.id, change.title, change.files_changed, change.additions, change.deletions));
                 }
                 content.push('\n');
             }
+
+            // Add summary metrics for the repository
+            let total_commits = repo_commits.len();
+            let total_files: usize = repo_commits.iter()
+                .map(|c| self.extract_commit_summary(c).files_changed)
+                .sum();
+            let total_additions: u64 = repo_commits.iter()
+                .map(|c| self.extract_commit_summary(c).additions)
+                .sum();
+            let total_deletions: u64 = repo_commits.iter()
+                .map(|c| self.extract_commit_summary(c).deletions)
+                .sum();
+            
+            content.push_str(&format!("**Repository Summary:** {} commits, {} files modified, +{} -{} lines\n\n", 
+                total_commits, total_files, total_additions, total_deletions));
         }
 
         Ok(content)
@@ -317,11 +346,53 @@ impl DataPreprocessor {
 
         let id = commit.get("short_id")
             .or_else(|| commit.get("id"))
+            .or_else(|| commit.get("hash"))
             .and_then(|i| i.as_str())
             .unwrap_or("")
             .to_string();
 
-        CommitSummary { title, author, id }
+        // Extract technical details for architectural analysis
+        let full_message = commit.get("message")
+            .and_then(|m| m.as_str())
+            .unwrap_or("")
+            .to_string();
+
+        let files_changed = commit.get("files_changed")
+            .and_then(|f| f.as_array())
+            .map(|arr| arr.len())
+            .unwrap_or(0);
+
+        let files_list = commit.get("files_changed")
+            .and_then(|f| f.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|f| f.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            })
+            .unwrap_or_default();
+
+        // Extract stats if available
+        let additions = commit.get("stats")
+            .and_then(|s| s.get("additions"))
+            .and_then(|a| a.as_u64())
+            .unwrap_or(0);
+
+        let deletions = commit.get("stats")
+            .and_then(|s| s.get("deletions"))
+            .and_then(|d| d.as_u64())
+            .unwrap_or(0);
+
+        CommitSummary { 
+            title, 
+            author, 
+            id, 
+            full_message, 
+            files_changed, 
+            files_list, 
+            additions, 
+            deletions 
+        }
     }
 
     fn categorize_commit(&self, summary: &CommitSummary) -> CommitCategory {
@@ -348,8 +419,15 @@ impl DataPreprocessor {
 #[derive(Debug)]
 struct CommitSummary {
     title: String,
+    #[allow(dead_code)]
     author: String,
     id: String,
+    #[allow(dead_code)]
+    full_message: String,
+    files_changed: usize,
+    files_list: String,
+    additions: u64,
+    deletions: u64,
 }
 
 #[derive(Debug)]

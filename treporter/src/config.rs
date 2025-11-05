@@ -129,11 +129,13 @@ impl Config {
     }
     
     /// Generate a default config.toml with helpful comments (legacy, uses current dir)
+    #[allow(dead_code)]
     pub fn generate_default() -> String {
         Self::generate_default_with_repo_path(".")
     }
     
     /// Generate default config with specified repository path
+    #[allow(dead_code)]
     fn generate_default_with_repo_path(repo_path: &str) -> String {
         let repo_name = std::path::Path::new(repo_path)
             .file_name()
@@ -414,7 +416,7 @@ filename_template = "{{project_name}}_{{template_name}}_{{date}}"
     /// Find the git repository root by searching up directories
     fn find_git_root() -> Option<String> {
         use std::env;
-        use std::path::PathBuf;
+        
         
         let current_dir = env::current_dir().ok()?;
         let mut path = current_dir.as_path();
@@ -431,6 +433,7 @@ filename_template = "{{project_name}}_{{template_name}}_{{date}}"
     }
     
     /// Discover git repositories in configured search paths
+    #[allow(dead_code)]
     pub fn discover_repositories(&self) -> Vec<RepositoryConfig> {
         let discovery = match &self.repository_discovery {
             Some(d) if d.enabled => d,
@@ -459,6 +462,7 @@ filename_template = "{{project_name}}_{{template_name}}_{{date}}"
     }
     
     /// Recursively find git repositories in a directory
+    #[allow(dead_code)]
     fn find_git_repos(
         path: &str,
         max_depth: usize,
@@ -467,6 +471,7 @@ filename_template = "{{project_name}}_{{template_name}}_{{date}}"
         Self::find_git_repos_recursive(path, max_depth, 0, ignore_patterns)
     }
     
+    #[allow(dead_code)]
     fn find_git_repos_recursive(
         path: &str,
         max_depth: usize,

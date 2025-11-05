@@ -20,6 +20,7 @@ pub struct LLMClient {
     max_items_per_chunk: usize,
     // Rate limiting
     requests_per_minute: u32,
+    #[allow(dead_code)]
     tokens_per_minute: u32,
     use_ollama: bool,
 }
@@ -40,7 +41,15 @@ impl LLMClient {
         
         // Model-specific configurations
         let (max_context_tokens, requests_per_minute, tokens_per_minute) = if use_ollama {
-            (8_192, 1000, 100_000) // Local model - no real rate limits
+            // Configure based on specific Ollama model
+            match config.llm.model.as_str() {
+                "deepseek-coder:33b-instruct" => (32_768, 100, 50_000), // Large model with more context
+                "deepseek-coder:6.7b-instruct" => (8_192, 500, 80_000), // Medium model
+                "codellama:34b-instruct" => (16_384, 100, 40_000), // Large CodeLlama
+                "codellama:13b-instruct" => (8_192, 300, 60_000), // Medium CodeLlama
+                "llama3.1:8b" => (8_192, 1000, 100_000), // General model
+                _ => (8_192, 500, 80_000), // Conservative defaults for unknown models
+            }
         } else {
             match config.llm.model.as_str() {
                 "gpt-4-turbo" => (128_000, 500, 150_000), // 128K context, rate limits for gpt-4-turbo
@@ -56,13 +65,22 @@ impl LLMClient {
         // Calculate optimal chunk size: use 60% of context for data, 40% for response/system prompt
         let target_chunk_tokens = (max_context_tokens as f64 * 0.6) as usize;
         
+        // Adjust max items per chunk based on model capability
+        let max_items_per_chunk = match config.llm.model.as_str() {
+            "deepseek-coder:33b-instruct" => 25, // Large model can handle more items
+            "codellama:34b-instruct" => 20,      // Large CodeLlama
+            "deepseek-coder:6.7b-instruct" => 15, // Medium model
+            "codellama:13b-instruct" => 15,      // Medium CodeLlama
+            _ => 10, // Conservative for smaller/unknown models
+        };
+        
         Self {
             client: Client::new(),
             config,
             ollama_client,
             max_context_tokens,
             target_chunk_tokens,
-            max_items_per_chunk: 15, // Reduced from 20 for safety
+            max_items_per_chunk,
             requests_per_minute,
             tokens_per_minute,
             use_ollama,
@@ -96,6 +114,7 @@ impl LLMClient {
         self.generate_chunked_report(&structured_content, &template).await
     }
 
+    #[allow(dead_code)]
     async fn generate_single_report(&self, content: &str, template: &str) -> Result<String> {
         let prompt = format!(
             "You are an expert technical writer creating a project status report.\n\n\
@@ -240,6 +259,7 @@ impl LLMClient {
     }
 
     /// Generate summaries for each data type using intelligent chunking
+    #[allow(dead_code)]
     fn generate_fallback_report(&self, data: &CollectedData, template: &str) -> String {
         let mut report = template.to_string();
         
@@ -764,6 +784,7 @@ impl LLMClient {
     }
 
     /// Synthesize the final report from all summaries
+    #[allow(dead_code)]
     async fn synthesize_final_report(&self, template: &str, summaries: &HashMap<String, String>, data: &CollectedData) -> Result<String> {
         println!("🎯 Synthesizing final report from {} summaries...", summaries.len());
         
@@ -867,9 +888,74 @@ impl LLMClient {
             }
         };
 
-        // Use the preprocessing system to structure the data
-        let preprocessor = DataPreprocessor::new();
-        let structured_content = preprocessor.preprocess_for_llm(data)?;
+        // SEND TECHNICAL CONTENT TO LLM - extract actual commit diffs and technical details
+        let mut technical_content = String::new();
+        
+        // Extract GitLab commit technical content
+        technical_content.push_str("# GitLab Technical Changes\n\n");
+        for commit in &data.gitlab.commits {
+            if let Some(title) = commit.get("title").and_then(|v| v.as_str()) {
+                technical_content.push_str(&format!("## Commit: {}\n", title));
+            }
+            if let Some(id) = commit.get("id").and_then(|v| v.as_str()) {
+                technical_content.push_str(&format!("ID: {}\n", id));
+            }
+            if let Some(author) = commit.get("author_name").and_then(|v| v.as_str()) {
+                technical_content.push_str(&format!("Author: {}\n", author));
+            }
+            if let Some(message) = commit.get("message").and_then(|v| v.as_str()) {
+                technical_content.push_str(&format!("Message: {}\n", message));
+            }
+            if let Some(diff) = commit.get("_diff").and_then(|v| v.as_str()) {
+                technical_content.push_str(&format!("Diff:\n```\n{}\n```\n", diff));
+            }
+            technical_content.push_str("\n---\n\n");
+        }
+        
+        // Extract GitHub commit technical content
+        technical_content.push_str("# GitHub Technical Changes\n\n");
+        for commit in &data.github.commits {
+            if let Some(title) = commit.get("title").and_then(|v| v.as_str()) {
+                technical_content.push_str(&format!("## Commit: {}\n", title));
+            }
+            if let Some(id) = commit.get("id").and_then(|v| v.as_str()) {
+                technical_content.push_str(&format!("ID: {}\n", id));
+            }
+            if let Some(author) = commit.get("author_name").and_then(|v| v.as_str()) {
+                technical_content.push_str(&format!("Author: {}\n", author));
+            }
+            if let Some(message) = commit.get("message").and_then(|v| v.as_str()) {
+                technical_content.push_str(&format!("Message: {}\n", message));
+            }
+            if let Some(diff) = commit.get("_diff").and_then(|v| v.as_str()) {
+                technical_content.push_str(&format!("Diff:\n```\n{}\n```\n", diff));
+            }
+            technical_content.push_str("\n---\n\n");
+        }
+        
+        // Extract Local Git commit technical content 
+        technical_content.push_str("# Local Git Technical Changes\n\n");
+        for commit in &data.git_commits {
+            technical_content.push_str(&format!("## Commit: {}\n", commit.message));
+            technical_content.push_str(&format!("ID: {}\n", commit.hash));
+            technical_content.push_str(&format!("Author: {} <{}>\n", commit.author_name, commit.author_email));
+            technical_content.push_str(&format!("Files Changed: {:?}\n", commit.files_changed));
+            technical_content.push_str("\n---\n\n");
+        }
+        
+        // Add metadata
+        technical_content.push_str(&format!(
+            "# Analysis Metadata\n\
+            - Analysis Period: {} to {}\n\
+            - Total Items: {}\n\
+            - Total Content Length: {} characters\n",
+            data.metadata.date_range_start.format("%Y-%m-%d"),
+            data.metadata.date_range_end.format("%Y-%m-%d"),
+            data.total_items(),
+            technical_content.len()
+        ));
+        
+        let structured_content = technical_content;
         
         println!("📊 Architectural analysis - preprocessed data: {} characters", structured_content.len());
         
@@ -890,17 +976,40 @@ impl LLMClient {
     async fn extract_technical_facts(&self, content: &str) -> Result<String> {
         println!("🔍 Stage 1: Extracting technical facts from development activity...");
         
+        // Load the sophisticated prompts from the TOML file
+        let prompt_config = match std::fs::read_to_string("prompts/architectural-analysis.toml") {
+            Ok(config_content) => {
+                match toml::from_str::<toml::Value>(&config_content) {
+                    Ok(config) => config,
+                    Err(e) => {
+                        println!("⚠️  Failed to parse prompt config: {}", e);
+                        return Ok("Failed to load prompt configuration".to_string());
+                    }
+                }
+            }
+            Err(e) => {
+                println!("⚠️  Failed to load prompt config: {}", e);
+                return Ok("Failed to load prompt configuration".to_string());
+            }
+        };
+        
+        let base_context = prompt_config
+            .get("architectural_analysis")
+            .and_then(|section| section.get("base_context"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("You are an expert software architect analyzing development activity.");
+            
+        let technical_foundation_prompt = prompt_config
+            .get("architectural_analysis")
+            .and_then(|section| section.get("technical_foundation_prompt"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("Analyze the technical foundation of this project.");
+        
         let prompt = format!(
-            "You are a senior software architect analyzing development activity. Your task is to extract concrete technical facts from the provided data.\n\n\
-            EXTRACTION GOALS:\n\
-            - Identify specific files, modules, and components that were modified\n\
-            - Categorize changes as: new features, refactoring, bug fixes, infrastructure, documentation\n\
-            - Extract technology stack information (languages, frameworks, tools)\n\
-            - Identify integration points and dependencies\n\
-            - Note any architectural decisions or design patterns\n\
-            - Quantify scope of changes (files modified, lines of code, complexity)\n\n\
-            ANALYSIS DATA:\n{}\n\n\
-            Provide a structured technical analysis with concrete facts and specific examples. Focus on WHAT was changed, not WHY or the broader implications.",
+            "{}\n\n{}\n\nDATA TO ANALYZE:\n{}\n\n\
+            Please provide a detailed technical analysis focusing on concrete facts from the development activity.",
+            base_context,
+            technical_foundation_prompt,
             content
         );
         
@@ -919,27 +1028,44 @@ impl LLMClient {
     }
 
     /// Stage 2: Identify architectural themes and patterns
-    async fn identify_architectural_themes(&self, technical_facts: &str, raw_data: &str) -> Result<String> {
+    async fn identify_architectural_themes(&self, technical_facts: &str, _raw_data: &str) -> Result<String> {
         println!("🎯 Stage 2: Identifying architectural themes and patterns...");
         
+        // Load the sophisticated prompts from the TOML file
+        let prompt_config = match std::fs::read_to_string("prompts/architectural-analysis.toml") {
+            Ok(config_content) => {
+                match toml::from_str::<toml::Value>(&config_content) {
+                    Ok(config) => config,
+                    Err(e) => {
+                        println!("⚠️  Failed to parse prompt config: {}", e);
+                        return Ok("Failed to load prompt configuration".to_string());
+                    }
+                }
+            }
+            Err(e) => {
+                println!("⚠️  Failed to load prompt config: {}", e);
+                return Ok("Failed to load prompt configuration".to_string());
+            }
+        };
+        
+        let base_context = prompt_config
+            .get("architectural_analysis")
+            .and_then(|section| section.get("base_context"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("You are an expert software architect analyzing development activity.");
+            
+        let architecture_patterns_prompt = prompt_config
+            .get("architectural_analysis")
+            .and_then(|section| section.get("architecture_patterns_prompt"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("Identify and analyze architectural patterns and design decisions.");
+        
         let prompt = format!(
-            "You are a software architect analyzing technical changes to identify broader architectural themes.\n\n\
-            THEME IDENTIFICATION GOALS:\n\
-            - Group related changes into coherent architectural themes\n\
-            - Identify system-level improvements or modifications\n\
-            - Recognize architectural patterns being implemented\n\
-            - Detect infrastructure or platform changes\n\
-            - Identify cross-cutting concerns (security, performance, maintainability)\n\
-            - Note any architectural debt being addressed\n\n\
-            TECHNICAL FACTS:\n{}\n\n\
-            RAW DATA REFERENCE:\n{}\n\n\
-            Organize the technical facts into major architectural themes. For each theme, provide:\n\
-            1. Theme name and description\n\
-            2. Related changes and components\n\
-            3. Architectural significance\n\
-            4. Technical impact and scope",
-            technical_facts, 
-            &raw_data[..raw_data.len().min(2000)] // Truncate for context
+            "{}\n\n{}\n\nTECHNICAL FACTS:\n{}\n\n\
+            Please analyze the technical facts to identify architectural patterns and themes.",
+            base_context,
+            architecture_patterns_prompt,
+            technical_facts
         );
         
         let response = if self.use_ollama {
@@ -960,25 +1086,42 @@ impl LLMClient {
     async fn synthesize_architectural_insights(&self, themes: &str, technical_facts: &str) -> Result<String> {
         println!("🧠 Stage 3: Synthesizing high-level architectural insights...");
         
+        // Load the sophisticated prompts from the TOML file
+        let prompt_config = match std::fs::read_to_string("prompts/architectural-analysis.toml") {
+            Ok(config_content) => {
+                match toml::from_str::<toml::Value>(&config_content) {
+                    Ok(config) => config,
+                    Err(e) => {
+                        println!("⚠️  Failed to parse prompt config: {}", e);
+                        return Ok("Failed to load prompt configuration".to_string());
+                    }
+                }
+            }
+            Err(e) => {
+                println!("⚠️  Failed to load prompt config: {}", e);
+                return Ok("Failed to load prompt configuration".to_string());
+            }
+        };
+        
+        let base_context = prompt_config
+            .get("architectural_analysis")
+            .and_then(|section| section.get("base_context"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("You are an expert software architect analyzing development activity.");
+            
+        let executive_summary_prompt = prompt_config
+            .get("architectural_analysis")
+            .and_then(|section| section.get("executive_summary_prompt"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("Analyze this project data to create a comprehensive executive summary.");
+        
         let prompt = format!(
-            "You are a chief architect creating strategic insights from development activity analysis.\n\n\
-            SYNTHESIS GOALS:\n\
-            - Synthesize high-level architectural direction and vision\n\
-            - Identify strategic technical decisions and their rationale\n\
-            - Assess architectural evolution and maturity\n\
-            - Evaluate technical debt and quality improvements\n\
-            - Determine system scalability and maintainability trends\n\
-            - Identify risks, opportunities, and recommendations\n\n\
-            ARCHITECTURAL THEMES:\n{}\n\n\
-            TECHNICAL FACTS:\n{}\n\n\
-            Create a comprehensive architectural synthesis that includes:\n\
-            1. Overall architectural direction and strategy\n\
-            2. Key technical achievements and milestones\n\
-            3. Architectural challenges and how they were addressed\n\
-            4. Quality and technical debt assessment\n\
-            5. Future architectural implications and recommendations\n\n\
-            Focus on synthesis, not just summarization. Draw connections between themes and provide strategic insights.",
-            themes, technical_facts
+            "{}\n\n{}\n\nARCHITECTURAL THEMES:\n{}\n\nTECHNICAL FACTS:\n{}\n\n\
+            Please provide a comprehensive executive summary synthesizing the architectural insights.",
+            base_context,
+            executive_summary_prompt,
+            themes,
+            technical_facts
         );
         
         let response = if self.use_ollama {
@@ -996,73 +1139,82 @@ impl LLMClient {
     }
 
     /// Stage 4: Generate final architectural report using template
-    async fn generate_final_architectural_report(&self, template: &str, synthesis: &str, data: &CollectedData) -> Result<String> {
-        println!("📝 Stage 4: Generating final architectural report...");
+    async fn generate_final_architectural_report(&self, _template: &str, synthesis: &str, data: &CollectedData) -> Result<String> {
+        println!("📝 Stage 4: Generating final architectural report using synthesized insights...");
         
-        // Parse template to find LLM_PROMPT sections
-        let llm_prompts = self.extract_llm_prompts(template);
-        println!("📝 Processing {} template sections with synthesized insights...", llm_prompts.len());
-        
-        let mut filled_template = template.to_string();
-        
-        // Process each LLM_PROMPT section with the synthesized insights
-        for (i, (placeholder, prompt)) in llm_prompts.iter().enumerate() {
-            println!("  📋 Processing section {}/{}: {}", i + 1, llm_prompts.len(), 
-                    &prompt[..prompt.len().min(60)]);
-            
-            let full_prompt = format!(
-                "You are an expert technical architect writing a comprehensive architectural analysis report for the SPEAR/CPM project.\n\n\
-                 Context: This is a DARPA-funded cybersecurity research project focused on least-privilege computing and static analysis.\n\n\
-                 ARCHITECTURAL SYNTHESIS:\n{}\n\n\
-                 Your specific task: {}\n\n\
-                 Using the architectural synthesis above, provide a detailed response that:\n\
-                 - References specific technical changes and their architectural significance\n\
-                 - Explains the broader implications of development activities\n\
-                 - Provides strategic technical insights\n\
-                 - Uses professional architectural language\n\
-                 - Focuses on system-level thinking and design decisions\n\n\
-                 Your response:",
-                synthesis, prompt
-            );
-            
-            let response = if self.use_ollama {
-                if let Some(ollama_client) = &self.ollama_client {
-                    match ollama_client.generate(&full_prompt).await {
-                        Ok(response) => response,
-                        Err(e) => {
-                            println!("    ⚠️  Ollama failed for section {}: {}", i + 1, e);
-                            format!("Analysis unavailable for this section due to processing error.")
-                        }
+        // Load the sophisticated prompts from the TOML file
+        let prompt_config = match std::fs::read_to_string("prompts/architectural-analysis.toml") {
+            Ok(config_content) => {
+                match toml::from_str::<toml::Value>(&config_content) {
+                    Ok(config) => config,
+                    Err(e) => {
+                        println!("⚠️  Failed to parse prompt config: {}", e);
+                        return Ok("Failed to load prompt configuration".to_string());
                     }
-                } else {
-                    format!("LLM processing unavailable for this section.")
                 }
-            } else {
-                match self.call_llm_api_with_retry(&full_prompt, 3).await {
+            }
+            Err(e) => {
+                println!("⚠️  Failed to load prompt config: {}", e);
+                return Ok("Failed to load prompt configuration".to_string());
+            }
+        };
+        
+        let base_context = prompt_config
+            .get("architectural_analysis")
+            .and_then(|section| section.get("base_context"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("You are an expert software architect analyzing development activity.");
+            
+        let final_report_prompt = prompt_config
+            .get("architectural_analysis")
+            .and_then(|section| section.get("final_report_prompt"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("Create a comprehensive final architectural report.");
+        
+        // Create a comprehensive prompt using the sophisticated TOML prompts
+        let final_prompt = format!(
+            "{}\n\n{}\n\nARCHITECTURAL SYNTHESIS:\n{}\n\n\
+             Please provide a comprehensive final architectural report.",
+            base_context,
+            final_report_prompt,
+            synthesis
+        );
+        
+        let response = if self.use_ollama {
+            if let Some(ollama_client) = &self.ollama_client {
+                match ollama_client.generate(&final_prompt).await {
                     Ok(response) => response,
                     Err(e) => {
-                        println!("    ⚠️  LLM API failed for section {}: {}", i + 1, e);
-                        format!("Analysis unavailable for this section due to API error.")
+                        println!("    ⚠️  Ollama failed for final report generation: {}", e);
+                        return Err(e);
                     }
                 }
-            };
-            
-            // Replace the placeholder with the generated response
-            filled_template = filled_template.replace(placeholder, &response);
-            
-            // Small delay between prompts
-            sleep(Duration::from_millis(500)).await;
-        }
+            } else {
+                return Err(anyhow::anyhow!("Ollama client not available"));
+            }
+        } else {
+            match self.call_llm_api_with_retry(&final_prompt, 3).await {
+                Ok(response) => response,
+                Err(e) => {
+                    println!("    ⚠️  LLM API failed for final report generation: {}", e);
+                    return Err(e);
+                }
+            }
+        };
         
-        // Replace any remaining template variables
-        filled_template = filled_template.replace("{{date_range_start}}", &data.metadata.date_range_start.format("%Y-%m-%d").to_string());
-        filled_template = filled_template.replace("{{date_range_end}}", &data.metadata.date_range_end.format("%Y-%m-%d").to_string());
-        filled_template = filled_template.replace("{{sources_used}}", &data.metadata.sources_used.join(", "));
-        filled_template = filled_template.replace("{{total_items}}", &data.total_items().to_string());
-        filled_template = filled_template.replace("{{generation_timestamp}}", &chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC").to_string());
+        // Add metadata footer
+        let date_range_start = data.metadata.date_range_start.format("%Y-%m-%d").to_string();
+        let date_range_end = data.metadata.date_range_end.format("%Y-%m-%d").to_string();
+        let sources_used = data.metadata.sources_used.join(", ");
         
-        println!("✅ Stage 4 complete: Final architectural report generated");
-        Ok(filled_template)
+        let final_report = format!(
+            "{}\n\n---\n\n## Report Metadata\n\n- **Analysis Period**: {} to {}\n- **Data Sources**: {}\n- **Generated**: {}\n- **Analysis Method**: 4-Stage Architectural Synthesis\n",
+            response, date_range_start, date_range_end, sources_used, 
+            chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC")
+        );
+        
+        println!("✅ Stage 4 complete: Final architectural report generated using synthesis");
+        Ok(final_report)
     }
 
     // ...existing code...
