@@ -229,6 +229,7 @@ dependencies = [
  "chrono",
  "clap",
  "csv",
+ "dirs",
  "dotenvy",
  "git2",
  "glob",

@@ -117,6 +117,17 @@ pub enum Commands {
         #[arg(short, long)]
         force: bool,
     },
+    
+    /// Set up global credentials in ~/.chronopulse/config.toml
+    Setup {
+        /// Force overwrite if file exists
+        #[arg(short, long)]
+        force: bool,
+        
+        /// Show current global configuration
+        #[arg(short, long)]
+        show: bool,
+    },
 }
 
 impl Cli {

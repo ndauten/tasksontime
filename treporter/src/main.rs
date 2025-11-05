@@ -1,4 +1,5 @@
 mod config;
+mod credentials;
 mod types;
 mod collectors;
 mod llm;
@@ -23,11 +24,24 @@ async fn main() -> Result<()> {
     
     let cli = Cli::parse();
     
-    // Handle init command first (doesn't need config file)
-    if let Commands::Init { ref output, force } = cli.command {
-        println!("🚀 Initializing ChronoPulse configuration...");
-        Config::write_default(output, force)?;
-        return Ok(());
+    // Handle commands that don't need config file first
+    match &cli.command {
+        Commands::Init { ref output, force } => {
+            println!("🚀 Initializing ChronoPulse configuration...");
+            Config::write_default(output, *force)?;
+            return Ok(());
+        },
+        Commands::Setup { force, show } => {
+            if *show {
+                credentials::GlobalConfig::show()?;
+            } else {
+                credentials::GlobalConfig::interactive_setup(*force)?;
+            }
+            return Ok(());
+        },
+        _ => {
+            // Continue to load config for other commands
+        }
     }
     
     // Load configuration for all other commands
@@ -39,7 +53,7 @@ async fn main() -> Result<()> {
     }
     
     match cli.command {
-        Commands::Init { .. } => {
+        Commands::Init { .. } | Commands::Setup { .. } => {
             // Already handled above
             unreachable!()
         },

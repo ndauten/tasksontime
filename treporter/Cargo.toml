@@ -22,6 +22,7 @@ git2 = "0.18"
 walkdir = "2.0"
 urlencoding = "2.1"
 shellexpand = "3.0"
+dirs = "6.0"
 
 [dev-dependencies]
 tempfile = "3.0"

@@ -5,6 +5,7 @@
 // reports using LLM integration.
 
 pub mod config;
+pub mod credentials;
 pub mod types;
 pub mod collectors;
 pub mod llm;
