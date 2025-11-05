@@ -610,6 +610,34 @@ filename_template = "{{project}}_{{type}}_{{date}}"
             println!("✓ Detected git repository at: {}", repo_path);
         }
         
+        // If repository discovery is enabled, run it now and show results
+        if enable_discovery && !search_paths.is_empty() {
+            use crate::config::Config;
+            
+            println!();
+            println!("🔍 Discovering repositories...");
+            
+            // Load the config we just created
+            if let Ok(config) = Config::load(config_path) {
+                let discovered = config.discover_repositories();
+                
+                if discovered.is_empty() {
+                    println!("   No additional repositories found.");
+                } else {
+                    println!("   Found {} repositories:", discovered.len());
+                    for repo in &discovered {
+                        if let Some(path) = &repo.path {
+                            println!("   ✓ {} ({})", repo.name, path);
+                        } else {
+                            println!("   ✓ {}", repo.name);
+                        }
+                    }
+                    println!();
+                    println!("   Note: These will be automatically included when you run 'chronopulse collect'");
+                }
+            }
+        }
+        
         Ok(())
     }
     

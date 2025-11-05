@@ -8,6 +8,7 @@ Tooling:
 Setup:
 - [x] add option to pull tokens from some default config location: maybe ~/.chronopulse? ✅
 - [x] enhance setup wizard with project configuration 2025-11-4 ✅
+- [x] setup wizard to autofind all recursive repos from the current git repo root
 
 Collect+Summarize:
 - [ ] All branches vs single default master for repositories

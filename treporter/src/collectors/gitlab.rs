@@ -1,5 +1,6 @@
 use crate::config::{GitLabConfig, RepositoryConfig, CollectionConfig};
 use crate::types::GitLabData;
+use crate::credentials::GlobalConfig;
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use reqwest::Client;
@@ -16,11 +17,26 @@ pub struct GitLabCollector {
 
 impl GitLabCollector {
     pub fn new(config: &GitLabConfig, _repositories: Vec<RepositoryConfig>) -> Result<Self> {
+        // Try to get credentials with priority: env var > global config
         let token = env::var(&config.token_env)
-            .map_err(|_| anyhow!("GitLab token not found in environment variable: {}", config.token_env))?;
+            .or_else(|_| {
+                // Try global config
+                GlobalConfig::load()
+                    .ok()
+                    .and_then(|gc| gc.gitlab)
+                    .and_then(|gitlab| gitlab.token)
+                    .ok_or_else(|| anyhow!("GitLab token not found in environment variable '{}' or global config", config.token_env))
+            })?;
         
         let username = env::var(&config.username_env)
-            .map_err(|_| anyhow!("GitLab username not found in environment variable: {}", config.username_env))?;
+            .or_else(|_| {
+                // Try global config
+                GlobalConfig::load()
+                    .ok()
+                    .and_then(|gc| gc.gitlab)
+                    .and_then(|gitlab| gitlab.username)
+                    .ok_or_else(|| anyhow!("GitLab username not found in environment variable '{}' or global config", config.username_env))
+            })?;
 
         Ok(Self {
             client: Client::new(),

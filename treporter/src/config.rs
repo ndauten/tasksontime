@@ -503,11 +503,16 @@ filename_template = "{{project_name}}_{{template_name}}_{{date}}"
         
         // Check if this directory is a git repo
         if path_obj.join(".git").exists() {
-            let name = path_obj
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("unknown")
-                .to_string();
+            // Get the repository name from the directory name
+            let name = if let Some(file_name) = path_obj.file_name().and_then(|n| n.to_str()) {
+                file_name.to_string()
+            } else {
+                // For paths like ".", get the canonical path and extract the name
+                path_obj.canonicalize()
+                    .ok()
+                    .and_then(|p| p.file_name().and_then(|n| n.to_str().map(|s| s.to_string())))
+                    .unwrap_or_else(|| "unknown".to_string())
+            };
             
             repos.push(RepositoryConfig {
                 name,
@@ -520,12 +525,9 @@ filename_template = "{{project_name}}_{{template_name}}_{{date}}"
                 include_commits: Some(true),
                 include_wiki: None,
             });
-            
-            // Don't recurse into discovered repos
-            return Ok(repos);
         }
         
-        // Recurse into subdirectories
+        // Recurse into subdirectories (even if current dir is a git repo, to find nested repos)
         if let Ok(entries) = fs::read_dir(path_obj) {
             for entry in entries.filter_map(|e| e.ok()) {
                 if let Ok(file_type) = entry.file_type() {

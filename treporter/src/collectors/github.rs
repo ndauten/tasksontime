@@ -1,5 +1,6 @@
 use crate::config::{GitHubConfig, RepositoryConfig, CollectionConfig};
 use crate::types::GitHubData;
+use crate::credentials::GlobalConfig;
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use reqwest::Client;
@@ -15,11 +16,26 @@ pub struct GitHubCollector {
 
 impl GitHubCollector {
     pub fn new(config: &GitHubConfig, _repositories: Vec<RepositoryConfig>) -> Result<Self> {
+        // Try to get credentials with priority: env var > global config
         let token = env::var(&config.token_env)
-            .map_err(|_| anyhow!("GitHub token not found in environment variable: {}", config.token_env))?;
+            .or_else(|_| {
+                // Try global config
+                GlobalConfig::load()
+                    .ok()
+                    .and_then(|gc| gc.github)
+                    .and_then(|github| github.token)
+                    .ok_or_else(|| anyhow!("GitHub token not found in environment variable '{}' or global config", config.token_env))
+            })?;
         
         let username = env::var(&config.username_env)
-            .map_err(|_| anyhow!("GitHub username not found in environment variable: {}", config.username_env))?;
+            .or_else(|_| {
+                // Try global config
+                GlobalConfig::load()
+                    .ok()
+                    .and_then(|gc| gc.github)
+                    .and_then(|github| github.username)
+                    .ok_or_else(|| anyhow!("GitHub username not found in environment variable '{}' or global config", config.username_env))
+            })?;
 
         Ok(Self {
             client: Client::new(),
