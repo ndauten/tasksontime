@@ -437,6 +437,45 @@ model = "llama3.2"
         
         println!();
         
+        // Branch Configuration
+        println!("🌿 Branch Collection");
+        println!();
+        println!("Which branches should be analyzed?");
+        println!("  1) Default branch only (main/master)");
+        println!("  2) All branches");
+        println!("  3) Specific branches (you'll be prompted)");
+        println!();
+        
+        let branch_choice = prompt_with_default("Branch collection mode", "1")?;
+        let branch_config = match branch_choice.as_str() {
+            "2" => "all".to_string(),
+            "3" => {
+                println!();
+                println!("Enter branch names (one per line, empty line to finish):");
+                let mut branches = vec![];
+                loop {
+                    print!("Branch name: ");
+                    io::stdout().flush()?;
+                    let mut branch = String::new();
+                    io::stdin().read_line(&mut branch)?;
+                    let branch = branch.trim();
+                    
+                    if branch.is_empty() {
+                        break;
+                    }
+                    branches.push(branch.to_string());
+                }
+                if branches.is_empty() {
+                    "default".to_string()
+                } else {
+                    format!("list = [{}]", branches.iter().map(|b| format!("\"{}\"", b)).collect::<Vec<_>>().join(", "))
+                }
+            },
+            _ => "default".to_string(),
+        };
+        
+        println!();
+        
         // LLM Configuration  
         println!("🤖 LLM Provider");
         println!();
@@ -552,14 +591,21 @@ time_patterns = [
         }
         
         // Repository configuration
+        let branches_line = if branch_config.starts_with("list") {
+            format!("branches = {{ {} }}", branch_config.replace("list = ", ""))
+        } else {
+            format!("branches = \"{}\"", branch_config)
+        };
+        
         config_content.push_str(&format!(r###"# Repositories to analyze
 [[repositories]]
 name = "{}"
 platform = "local"
 path = "{}"
 include_commits = true
+{}
 
-"###, project_name, repo_path));
+"###, project_name, repo_path, branches_line));
         
         // Repository discovery
         if enable_discovery && !search_paths.is_empty() {
@@ -652,6 +698,13 @@ filename_template = "{{project}}_{{type}}_{{date}}"
                         // Read the current config file
                         let mut config_content = std::fs::read_to_string(config_path)?;
                         
+                        // Prepare branch config line
+                        let branches_line = if branch_config.starts_with("list") {
+                            format!("branches = {{ {} }}", branch_config.replace("list = ", ""))
+                        } else {
+                            format!("branches = \"{}\"", branch_config)
+                        };
+                        
                         // Find where to insert the new repositories (after the existing [[repositories]] section)
                         let mut new_repos_section = String::new();
                         for repo in &selected_repos {
@@ -662,8 +715,9 @@ name = "{}"
 platform = "local"
 path = "{}"
 include_commits = true
+{}
 
-"###, repo.name, path));
+"###, repo.name, path, branches_line));
                             }
                         }
                         

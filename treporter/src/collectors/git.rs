@@ -22,7 +22,7 @@ impl GitCollector {
         for repo_config in &self.repositories {
             if let Some(path) = &repo_config.path {
                 if repo_config.include_commits.unwrap_or(true) {
-                    match self.collect_from_repository(path, &repo_config.name, start_date, end_date) {
+                    match self.collect_from_repository(path, repo_config, start_date, end_date) {
                         Ok(mut commits) => {
                             all_commits.append(&mut commits);
                         },
@@ -38,48 +38,92 @@ impl GitCollector {
         Ok(all_commits)
     }
 
-    fn collect_from_repository(&self, repo_path: &str, repo_name: &str, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<GitCommitData>> {
+    fn collect_from_repository(&self, repo_path: &str, repo_config: &RepositoryConfig, start_date: DateTime<Utc>, end_date: DateTime<Utc>) -> Result<Vec<GitCommitData>> {
+        use crate::config::BranchConfig;
+        
         let repo = Repository::open(repo_path)?;
         let mut commits = Vec::new();
 
-        // Get the current branch HEAD
-        let head = repo.head()?;
-        let oid = head.target().unwrap();
-        
-        // Walk the commit history
-        let mut revwalk = repo.revwalk()?;
-        revwalk.push(oid)?;
-        revwalk.set_sorting(git2::Sort::TIME)?;
-
-        for commit_oid in revwalk {
-            let commit_oid = commit_oid?;
-            let commit = repo.find_commit(commit_oid)?;
-            
-            let commit_time = DateTime::from_timestamp(commit.time().seconds(), 0)
-                .unwrap_or(Utc::now());
-
-            // Filter by date range
-            if commit_time < start_date {
-                break; // Since we're walking in chronological order, we can stop here
+        // Determine which branches to collect from
+        let branches_to_collect = match &repo_config.branches {
+            Some(BranchConfig::All) => {
+                // Collect from all local branches
+                let mut branch_list = Vec::new();
+                for branch in repo.branches(Some(git2::BranchType::Local))? {
+                    let (branch, _) = branch?;
+                    if let Some(name) = branch.name()? {
+                        branch_list.push(name.to_string());
+                    }
+                }
+                branch_list
+            },
+            Some(BranchConfig::List(branches)) => branches.clone(),
+            Some(BranchConfig::Default) | None => {
+                // Get the default branch (HEAD)
+                vec!["HEAD".to_string()]
             }
-            
-            if commit_time > end_date {
-                continue;
-            }
+        };
 
-            let stats = self.get_commit_stats(&repo, &commit)?;
-            
-            let commit_data = GitCommitData {
-                hash: commit.id().to_string(),
-                author_name: commit.author().name().unwrap_or("").to_string(),
-                author_email: commit.author().email().unwrap_or("").to_string(),
-                message: commit.message().unwrap_or("").to_string(),
-                timestamp: commit_time,
-                repo_path: repo_name.to_string(),
-                files_changed: stats.files_changed,
+        println!("   📌 Collecting from {} branch(es) in {}", branches_to_collect.len(), repo_config.name);
+
+        // Collect commits from each branch
+        for branch_name in &branches_to_collect {
+            let oid = if branch_name == "HEAD" {
+                repo.head()?.target().unwrap()
+            } else {
+                // Try to find the branch
+                match repo.find_branch(branch_name, git2::BranchType::Local) {
+                    Ok(branch) => {
+                        match branch.get().target() {
+                            Some(oid) => oid,
+                            None => {
+                                println!("   ⚠️  Branch '{}' has no target, skipping", branch_name);
+                                continue;
+                            }
+                        }
+                    },
+                    Err(_) => {
+                        println!("   ⚠️  Branch '{}' not found, skipping", branch_name);
+                        continue;
+                    }
+                }
             };
 
-            commits.push(commit_data);
+            // Walk the commit history for this branch
+            let mut revwalk = repo.revwalk()?;
+            revwalk.push(oid)?;
+            revwalk.set_sorting(git2::Sort::TIME)?;
+
+            for commit_oid in revwalk {
+                let commit_oid = commit_oid?;
+                let commit = repo.find_commit(commit_oid)?;
+                
+                let commit_time = DateTime::from_timestamp(commit.time().seconds(), 0)
+                    .unwrap_or(Utc::now());
+
+                // Filter by date range
+                if commit_time < start_date {
+                    break; // Since we're walking in chronological order, we can stop here
+                }
+                
+                if commit_time > end_date {
+                    continue;
+                }
+
+                let stats = self.get_commit_stats(&repo, &commit)?;
+                
+                let commit_data = GitCommitData {
+                    hash: commit.id().to_string(),
+                    author_name: commit.author().name().unwrap_or("").to_string(),
+                    author_email: commit.author().email().unwrap_or("").to_string(),
+                    message: commit.message().unwrap_or("").to_string(),
+                    timestamp: commit_time,
+                    repo_path: repo_config.name.to_string(),
+                    files_changed: stats.files_changed,
+                };
+
+                commits.push(commit_data);
+            }
         }
 
         Ok(commits)

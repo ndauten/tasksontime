@@ -160,10 +160,11 @@ fn test_discover_respects_max_depth() {
     let config = create_minimal_config(Some(discovery));
     let discovered = config.discover_repositories();
     
-    // Should only find repos up to depth 2
-    // level1 is found and stops recursion, so we get only level1
-    assert_eq!(discovered.len(), 1);
-    assert_eq!(discovered[0].name, "level1");
+    // Should find repos up to depth 2 (level1 and level1/level2)
+    // Now we continue recursing even after finding a git repo
+    assert_eq!(discovered.len(), 2);
+    assert!(discovered.iter().any(|r| r.name == "level1"));
+    assert!(discovered.iter().any(|r| r.name == "level2"));
 }
 
 #[test]
@@ -186,9 +187,11 @@ fn test_discover_nested_repos_stops_at_git() {
     let config = create_minimal_config(Some(discovery));
     let discovered = config.discover_repositories();
     
-    // Should stop at the first git repo and not recurse into it
-    assert_eq!(discovered.len(), 1);
-    assert_eq!(discovered[0].name, "monorepo");
+    // Should now find the parent repo AND nested repos (new behavior for better discovery)
+    assert_eq!(discovered.len(), 3);
+    assert!(discovered.iter().any(|r| r.name == "monorepo"));
+    assert!(discovered.iter().any(|r| r.name == "subproject1"));
+    assert!(discovered.iter().any(|r| r.name == "subproject2"));
 }
 
 #[test]

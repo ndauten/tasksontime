@@ -90,6 +90,18 @@ pub struct RepositoryConfig {
     pub include_merge_requests: Option<bool>,
     pub include_commits: Option<bool>,
     pub include_wiki: Option<bool>,
+    pub branches: Option<BranchConfig>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "lowercase")]
+pub enum BranchConfig {
+    /// Only collect from the default branch (main/master)
+    Default,
+    /// Collect from all branches
+    All,
+    /// Collect from specific branches
+    List(Vec<String>),
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -524,6 +536,7 @@ filename_template = "{{project_name}}_{{template_name}}_{{date}}"
                 include_merge_requests: None,
                 include_commits: Some(true),
                 include_wiki: None,
+                branches: None, // Will inherit from config or use default
             });
         }
         
