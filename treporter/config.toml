@@ -1,0 +1,150 @@
+[project]
+name = "SPEAR Project"
+description = "Automated monthly project reporting tool"
+
+[date_range]
+# Default to current month, can be overridden by CLI args
+default_period = "2025-01"
+
+# Global collection options
+[collection]
+# Include git diffs for commits and merge requests (provides detailed change information)
+include_diffs = true
+# Maximum diff size to include (in characters, 0 = no limit)
+max_diff_size = 50000
+
+[data_sources]
+# GitLab configuration
+[data_sources.gitlab]
+enabled = true
+token_env = "GITLAB_TOKEN"
+username_env = "GITLAB_USERNAME"
+base_url = "https://gitlab.com"
+# List of specific repositories to collect from (format: namespace/project)
+repositories = [
+    "bxsays/callsite-finder",
+    "serenitix/projects/spear/hyperspear",
+    "serenitix/projects/spear/cpm_if_tools",
+    "serenitix/projects/spear/spear-hq",
+    "serenitix/projects/hyperplanes-project/hyperplanes",
+    "serenitix/contracts/upenn-cpm-hq",
+    "fierce-lab/objectencapsulation"
+]
+# What to collect from each repository
+include_issues = true
+include_merge_requests = true
+include_commits = true
+include_wiki = true
+include_comments = true
+
+# GitHub configuration  
+[data_sources.github]
+enabled = true
+token_env = "GITHUB_TOKEN"
+username_env = "GITHUB_USERNAME"
+# List of specific repositories to collect from (format: owner/repo)
+repositories = [
+    "SEVER-PROTECT/CPM-Interchange-Format",
+    "Serenitix/cpm_if_tools",
+]
+# What to collect from each repository
+include_issues = true
+include_pull_requests = true
+include_commits = true
+include_wiki = true
+
+# Local file sources - comprehensive documentation coverage
+[data_sources.local_files]
+enabled = true
+paths = [
+    # SPEAR HQ documentation and activities
+    #"/Users/ndd/haven/thebrain/projects/spear/spear-hq/activities/**/*.md",
+    #"/Users/ndd/haven/thebrain/projects/spear/spear-hq/spear-hq.wiki/**/*.md",
+    #"/Users/ndd/haven/thebrain/projects/spear/spear-hq/reports/**/*.md",
+    
+    # UPenn CPM project documentation
+    #"/Users/ndd/haven/thebrain/projects/spear/upenn-cpm-hq/project/**/*.md",
+    #"/Users/ndd/haven/thebrain/projects/spear/upenn-cpm-hq/**/*.md",
+    
+    # CPM Interchange Format documentation
+    #"/Users/ndd/haven/thebrain/projects/spear/CPM-Interchange-Format/**/*.md",
+    
+    # Tasksontime project documentation
+    #"/Users/ndd/haven/thebrain/projects/spear/tasksontime/**/*.md",
+]
+# File patterns to look for time-based notes
+time_patterns = [
+    "# \\d{4}-\\d{2}-\\d{2}",  # Date headers like "# 2025-01-15"
+    "\\d{4}-\\d{2}-\\d{2}:",   # Date prefixes like "2025-01-15:"
+    "## Week of \\d{4}-\\d{2}-\\d{2}"  # Weekly headers
+]
+
+# Repository-specific configuration
+# Include all SPEAR project repositories for comprehensive reporting
+
+# Local repositories with Git history
+[[repositories]]
+name = "upenn-cpm-contract"
+platform = "local"
+path = "/Users/ndd/haven/thebrain/projects/spear/upenn-cpm-contract"
+include_commits = true
+
+[[repositories]]
+name = "CPM-Interchange-Format"
+platform = "local" 
+path = "/Users/ndd/haven/thebrain/projects/spear/CPM-Interchange-Format"
+include_commits = true
+
+[[repositories]]
+name = "spear-hq-local"
+platform = "local"
+path = "/Users/ndd/haven/thebrain/projects/spear/spear-hq"
+include_commits = true
+
+# Add the tasksontime repo where treporter lives
+[[repositories]]
+name = "tasksontime"
+platform = "local"
+path = "/Users/ndd/haven/thebrain/projects/spear/tasksontime"
+include_commits = true
+
+# Note: upenn-cpm-hq has git conflicts, excluding for now
+# [[repositories]]
+# name = "upenn-cpm-hq"
+# platform = "local"
+# path = "/Users/ndd/haven/thebrain/projects/spear/upenn-cpm-hq"
+# include_commits = true
+
+[[repositories]]
+name = "spear-hq.wiki"
+platform = "local" 
+path = "/Users/ndd/haven/thebrain/projects/spear/spear-hq/spear-hq.wiki"
+include_commits = true
+
+# LLM Configuration
+[llm]
+provider = "openai"  # or "anthropic", "local"
+model = "gpt-4-turbo"  # Biggest model with 128K context
+api_key_env = "OPENAI_API_KEY"
+max_tokens = 4000  # Increased for more comprehensive reports
+temperature = 0.3
+
+# Report templates
+[templates]
+# Monthly report template
+[templates.monthly_report]
+path = "templates/monthly_report.md"
+output_format = "markdown"
+sections = ["executive_summary", "accomplishments", "issues", "next_month"]
+
+# Slides template for group meetings
+[templates.group_slides]
+path = "templates/group_slides.md"
+output_format = "marp"  # Marp markdown for slides
+sections = ["title", "highlights", "progress", "blockers", "next_steps"]
+
+# Output configuration
+[output]
+base_directory = "reports"
+date_format = "%Y-%m"
+filename_template = "{project_name}_{template_name}_{date}"
