@@ -47,6 +47,7 @@ fn create_test_config(repo: RepositoryConfig) -> Config {
             date_format: "%Y-%m".to_string(),
             filename_template: "test".to_string(),
         },
+        reporting: None,
     }
 }
 

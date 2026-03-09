@@ -1,7 +1,8 @@
 use crate::types::{CollectedData, GitLabData, GitHubData, GitCommitData};
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub struct DataPreprocessor;
 
@@ -437,4 +438,171 @@ enum CommitCategory {
     Documentation,
     Infrastructure,
     Other,
+}
+
+// ---- Sanitized data types (output of the deductive sanitize step) ----
+
+/// A commit normalized from any source (GitLab, GitHub, local git).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SanitizedCommit {
+    /// Short hash used for deduplication.
+    pub hash: String,
+    pub title: String,
+    pub author: String,
+    pub repo: String,
+    /// Full commit message, capped at 600 chars.
+    pub full_message: String,
+    /// Files touched, capped at 10 entries.
+    pub files_changed: Vec<String>,
+    pub additions: u64,
+    pub deletions: u64,
+}
+
+/// All activity after dedup, bot-filter, truncation, and token-budget enforcement.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SanitizedData {
+    pub commits: Vec<SanitizedCommit>,
+    /// MR/PR titles with state, e.g. "[merged] Add retry logic"
+    pub mrs_and_prs: Vec<String>,
+    /// Issue titles with state, e.g. "[closed] Fix crash on empty input"
+    pub issues: Vec<String>,
+}
+
+impl DataPreprocessor {
+    /// Deductive phase step 1 — sanitize raw collected data.
+    ///
+    /// Normalizes commits from all sources into `SanitizedCommit`, deduplicates
+    /// by hash, removes bot authors, truncates long messages/file lists, and
+    /// drops the oldest commits when the estimated token count exceeds `budget`.
+    pub fn sanitize(&self, data: &CollectedData, budget: usize) -> SanitizedData {
+        let mut commits = self.collect_all_commits(data);
+
+        // Dedup by hash; if hash is empty use "title:author" as fallback key.
+        let mut seen: HashSet<String> = HashSet::new();
+        commits.retain(|c| {
+            let key = if c.hash.is_empty() {
+                format!("{}:{}", c.title, c.author)
+            } else {
+                c.hash.clone()
+            };
+            seen.insert(key)
+        });
+
+        // Drop bot-authored commits.
+        commits.retain(|c| !Self::is_bot_author(&c.author));
+
+        // Collect MR/PR and issue titles (simple text form for context).
+        let mrs_and_prs: Vec<String> = data
+            .gitlab
+            .merge_requests
+            .iter()
+            .chain(data.github.pull_requests.iter())
+            .filter_map(|v| {
+                let title = v.get("title").and_then(|t| t.as_str())?;
+                let state = v.get("state").and_then(|s| s.as_str()).unwrap_or("?");
+                Some(format!("[{}] {}", state, title))
+            })
+            .collect();
+
+        let issues: Vec<String> = data
+            .gitlab
+            .issues
+            .iter()
+            .chain(data.github.issues.iter())
+            .filter_map(|v| {
+                let title = v.get("title").and_then(|t| t.as_str())?;
+                let state = v.get("state").and_then(|s| s.as_str()).unwrap_or("?");
+                Some(format!("[{}] {}", state, title))
+            })
+            .collect();
+
+        // Token budget: estimate ~4 chars per token.
+        // Drop commits from the back (oldest/least-signal) until within budget.
+        loop {
+            if commits.is_empty() {
+                break;
+            }
+            let commit_chars: usize = commits
+                .iter()
+                .map(|c| c.title.len() + c.full_message.len() + c.files_changed.join(",").len() + 40)
+                .sum();
+            let context_chars: usize =
+                mrs_and_prs.iter().map(|s| s.len()).sum::<usize>()
+                    + issues.iter().map(|s| s.len()).sum::<usize>();
+            if (commit_chars + context_chars) / 4 <= budget {
+                break;
+            }
+            commits.pop();
+        }
+
+        SanitizedData { commits, mrs_and_prs, issues }
+    }
+
+    /// Collect and normalize commits from all three sources into `SanitizedCommit`.
+    fn collect_all_commits(&self, data: &CollectedData) -> Vec<SanitizedCommit> {
+        let mut result: Vec<SanitizedCommit> = Vec::new();
+
+        // GitLab + GitHub commits share the same JSON shape.
+        for commit in data.gitlab.commits.iter().chain(data.github.commits.iter()) {
+            let summary = self.extract_commit_summary(commit);
+            let repo = self.extract_repo_name(commit);
+            let files: Vec<String> = commit
+                .get("files_changed")
+                .and_then(|f| f.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|f| f.as_str().map(|s| s.to_string()))
+                        .take(10)
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            result.push(SanitizedCommit {
+                hash: summary.id,
+                title: summary.title,
+                author: summary.author,
+                repo,
+                full_message: summary.full_message.chars().take(600).collect(),
+                files_changed: files,
+                additions: summary.additions,
+                deletions: summary.deletions,
+            });
+        }
+
+        // Local git commits have a typed struct.
+        for c in &data.git_commits {
+            let hash = c.hash.chars().take(8).collect();
+            let title = c.message.lines().next().unwrap_or("").to_string();
+            let full_message: String = c.message.chars().take(600).collect();
+            let repo = c
+                .repo_path
+                .trim_end_matches('/')
+                .rsplit('/')
+                .next()
+                .unwrap_or(&c.repo_path)
+                .to_string();
+
+            result.push(SanitizedCommit {
+                hash,
+                title,
+                author: c.author_name.clone(),
+                repo,
+                full_message,
+                files_changed: c.files_changed.iter().take(10).cloned().collect(),
+                additions: 0,
+                deletions: 0,
+            });
+        }
+
+        result
+    }
+
+    fn is_bot_author(author: &str) -> bool {
+        let lower = author.to_lowercase();
+        lower.contains("[bot]")
+            || lower.contains("dependabot")
+            || lower.contains("renovate")
+            || lower.contains("github-actions")
+            || lower.contains("gitlab-bot")
+    }
 }

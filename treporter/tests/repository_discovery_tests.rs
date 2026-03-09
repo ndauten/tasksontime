@@ -70,6 +70,7 @@ fn test_discover_single_repository() {
             date_format: "%Y-%m".to_string(),
             filename_template: "{project_name}_{template_name}_{date}".to_string(),
         },
+        reporting: None,
     };
     
     let discovered = config.discover_repositories();
@@ -328,5 +329,6 @@ fn create_minimal_config(discovery: Option<RepositoryDiscoveryConfig>) -> Config
             date_format: "%Y-%m".to_string(),
             filename_template: "{project_name}_{template_name}_{date}".to_string(),
         },
+        reporting: None,
     }
 }
