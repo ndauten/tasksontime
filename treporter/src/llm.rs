@@ -2,6 +2,8 @@ use crate::config::Config;
 use crate::types::CollectedData;
 use crate::preprocessor::DataPreprocessor;
 use crate::ollama::OllamaClient;
+use crate::structured_extractor::StructuredData;
+use crate::retry_loop::{RetryLoop, validate_min_length};
 use anyhow::Result;
 use reqwest::Client;
 use serde_json::{json, Value};
@@ -287,7 +289,7 @@ impl LLMClient {
         }
         
         // Basic replacements
-        report = report.replace("{{project_name}}", "SPEAR Project");
+        report = report.replace("{{project_name}}", &self.config.project.name);
         report = report.replace("{{report_period}}", &format!("{} to {}", 
             data.metadata.date_range_start.format("%B %Y"),
             data.metadata.date_range_end.format("%B %Y")));
@@ -387,7 +389,7 @@ impl LLMClient {
         let mut slides = template.to_string();
         
         // Basic replacements
-        slides = slides.replace("{{project_name}}", "SPEAR Project");
+        slides = slides.replace("{{project_name}}", &self.config.project.name);
         slides = slides.replace("{{report_period}}", &format!("{} to {}", 
             data.metadata.date_range_start.format("%B %Y"),
             data.metadata.date_range_end.format("%B %Y")));
@@ -794,7 +796,7 @@ impl LLMClient {
             .join("\n\n");
         
         let prompt = format!(
-            "You are a project manager creating a comprehensive monthly technical report for the SPEAR project. \
+            "You are a project manager creating a comprehensive monthly technical report for the {project} project. \
             Based on the following data summaries, generate a complete report using the template provided.\n\n\
             IMPORTANT INSTRUCTIONS:\n\
             - The data summaries below contain analyzed information from different sources (GitLab, GitHub, local Git)\n\
@@ -816,7 +818,8 @@ impl LLMClient {
             data.metadata.sources_used.join(", "),
             data.total_items(),
             summaries_text,
-            template
+            template,
+            project = &self.config.project.name
         );
         
         match self.call_llm_api(&prompt).await {
@@ -839,7 +842,7 @@ impl LLMClient {
             .join("\n\n");
         
         let prompt = format!(
-            "You are preparing slides for a group presentation on the SPEAR project. \
+            "You are preparing slides for a group presentation on the {project} project. \
             Based on the following data summaries, generate presentation slides using the template provided. \
             Focus on progress metrics, key achievements, and quantitative summaries.\n\n\
             IMPORTANT INSTRUCTIONS:\n\
@@ -862,7 +865,8 @@ impl LLMClient {
             data.metadata.sources_used.join(", "),
             data.total_items(),
             summaries_text,
-            template
+            template,
+            project = &self.config.project.name
         );
         
         match self.call_llm_api(&prompt).await {
@@ -1442,10 +1446,9 @@ impl LLMClient {
                     &prompt[..prompt.len().min(60)]);
             
             let full_prompt = format!(
-                "You are an expert technical writer creating a project status report for the SPEAR/CPM project.\n\n\
-                 Context: This is a DARPA-funded cybersecurity research project focused on least-privilege computing and static analysis.\n\n\
+                "You are an expert technical writer creating a project status report for the {project} project.\n\n\
                  Your task: {}\n\n\
-                 Based on the following Q2 2025 project activity data, provide a detailed response:\n\n\
+                 Based on the following project activity data, provide a detailed response:\n\n\
                  === PROJECT ACTIVITY DATA ===\n{}\n\n\
                  === RESPONSE REQUIREMENTS ===\n\
                  - Be specific and concrete\n\
@@ -1454,7 +1457,8 @@ impl LLMClient {
                  - Focus on significant technical contributions\n\
                  - Include relevant details like project names, authors, dates when appropriate\n\n\
                  Your response:",
-                prompt, content
+                prompt, content,
+                project = &self.config.project.name
             );
             
             let response = if self.use_ollama {
@@ -1590,5 +1594,230 @@ impl LLMClient {
 - Total Activities Analyzed: {{total_items}}
 - Report Generated: {{generation_timestamp}}
 "#.to_string()
+    }
+
+    // ------------------------------------------------------------------ //
+    //  Inductive phase: structured-data → monthly report (Phase 3)       //
+    // ------------------------------------------------------------------ //
+
+    /// Generate a monthly report from pre-analysed `StructuredData`.
+    ///
+    /// This is the inductive step in the de-inductive architecture: the LLM
+    /// only receives deterministically clustered evidence and must write prose
+    /// that labels and narrates those clusters.  A `RetryLoop` (max 3 tries)
+    /// ensures format compliance; the pure-Rust fallback is always available.
+    pub async fn synthesize_with_structured_data(
+        &self,
+        structured: &StructuredData,
+        date_range: &str,
+        prior_plan_context: Option<&str>,
+    ) -> Result<String> {
+        let project_name = self.config.project.name.clone();
+
+        // Build the condensed activity text from StructuredData.
+        let clusters_text = Self::format_clusters_for_prompt(structured);
+        let milestones_text = if structured.milestone_markers.is_empty() {
+            String::new()
+        } else {
+            let lines: Vec<String> = structured
+                .milestone_markers
+                .iter()
+                .map(|m| format!("- [{}] {}", m.status_hint, m.text))
+                .collect();
+            format!("\nCARRY-FORWARD FROM LAST MONTH:\n{}\n", lines.join("\n"))
+        };
+
+        let prior_context = prior_plan_context
+            .map(|p| format!("\nPRIOR MONTH PLAN EXCERPT:\n{}\n", &p[..p.len().min(1500)]))
+            .unwrap_or_default();
+
+        let metrics = &structured.summary_metrics;
+        let repos_str = structured.metadata.repos.join(", ");
+
+        let base_prompt = format!(
+            "You are writing a professional monthly engineering report.\n\
+             Project: {project}\n\
+             Period: {period}\n\
+             Repos: {repos}\n\n\
+             METRICS:\n\
+             - Unique commits: {commits}\n\
+             - Lines added/removed: +{adds}/-{dels}\n\
+             - Open MRs/PRs: {prs} | Issues: {issues}\n\
+             {milestones}{prior}\n\
+             COMMIT CLUSTERS (tf-idf analysis - each cluster = a distinct work area):\n\
+             {clusters}\n\
+             INSTRUCTIONS:\n\
+             - Write a COMPLETE monthly report. Use these sections:\n\
+               1. Executive Summary (3-5 sentences, key numbers)\n\
+               2. Technical Achievements (one subsection per commit cluster; name the \
+                  subsection after the cluster's theme)\n\
+               3. Progress on Prior Goals (reference CARRY-FORWARD items if present)\n\
+               4. Risks / Blockers (if any are evident)\n\
+               5. Next Steps\n\
+             - Reference actual commit titles and repository names.\n\
+             - Do not invent data not present above.\n\
+             - Use markdown formatting.",
+            project = project_name,
+            period = date_range,
+            repos = repos_str,
+            commits = structured.metadata.total_commits_sanitized,
+            adds = metrics.total_additions,
+            dels = metrics.total_deletions,
+            prs = metrics.total_mrs_and_prs,
+            issues = metrics.total_issues,
+            milestones = milestones_text,
+            prior = prior_context,
+            clusters = clusters_text,
+        );
+
+        let retry = RetryLoop::new(3);
+        let fallback = Self::structured_fallback_report(structured, &project_name, date_range);
+
+        let result = retry
+            .run_str(
+                |hint| {
+                    let prompt = match hint {
+                        None => base_prompt.clone(),
+                        Some(h) => format!(
+                            "{base}\n\n---\nPREVIOUS ATTEMPT FEEDBACK: {hint}\n\
+                             Please revise your response to address this feedback.",
+                            base = base_prompt,
+                            hint = h
+                        ),
+                    };
+                    let ollama = self.ollama_client.as_ref().map(|o| {
+                        // Clone the model + url so we can move into the async block.
+                        // OllamaClient isn't Clone, so we reconstruct from config fields.
+                        (self.config.llm.model.clone(), String::new())
+                    });
+                    let use_ollama = self.use_ollama;
+                    let api_base = std::env::var("OPENAI_API_BASE")
+                        .unwrap_or_else(|_| "https://api.openai.com/v1".to_string());
+                    let api_key = std::env::var("OPENAI_API_KEY").unwrap_or_default();
+                    let model = self.config.llm.model.clone();
+                    let client = self.client.clone();
+                    async move {
+                        if use_ollama {
+                            let oc = OllamaClient::new(None, Some(model));
+                            oc.generate(&prompt).await
+                        } else {
+                            // Minimal OpenAI-compatible call
+                            let payload = serde_json::json!({
+                                "model": model,
+                                "messages": [{"role": "user", "content": prompt}],
+                                "max_tokens": 2048
+                            });
+                            let resp: serde_json::Value = client
+                                .post(format!("{}/chat/completions", api_base))
+                                .bearer_auth(&api_key)
+                                .json(&payload)
+                                .send()
+                                .await?
+                                .json()
+                                .await?;
+                            let text = resp["choices"][0]["message"]["content"]
+                                .as_str()
+                                .unwrap_or("")
+                                .to_string();
+                            Ok(text)
+                        }
+                    }
+                },
+                validate_min_length(300),
+                fallback,
+            )
+            .await;
+
+        Ok(result)
+    }
+
+    /// Format commit clusters into a compact prompt-friendly representation.
+    fn format_clusters_for_prompt(structured: &StructuredData) -> String {
+        structured
+            .commit_clusters
+            .iter()
+            .enumerate()
+            .map(|(i, cluster)| {
+                let sample_titles: Vec<&str> = cluster
+                    .commits
+                    .iter()
+                    .take(4)
+                    .map(|c| c.title.as_str())
+                    .collect();
+                let files_summary = if cluster.file_paths.is_empty() {
+                    String::new()
+                } else {
+                    format!("\n  Files: {}", cluster.file_paths.join(", "))
+                };
+                let stats: u64 = cluster
+                    .commits
+                    .iter()
+                    .map(|c| c.additions + c.deletions)
+                    .sum();
+                format!(
+                    "Cluster {} - terms: [{}] ({} commits, ~{} lines changed)\n\
+                     Sample commits:\n{}{}\n",
+                    i + 1,
+                    cluster.terms.join(", "),
+                    cluster.commits.len(),
+                    stats,
+                    sample_titles
+                        .iter()
+                        .map(|t| format!("  - {}", t))
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                    files_summary,
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    /// Pure-Rust fallback report — uses only StructuredData, no LLM.
+    fn structured_fallback_report(
+        structured: &StructuredData,
+        project_name: &str,
+        date_range: &str,
+    ) -> String {
+        let metrics = &structured.summary_metrics;
+        let mut out = format!(
+            "# Monthly Engineering Report\n\
+             **Project:** {project}\n\
+             **Period:** {period}\n\n\
+             ## Executive Summary\n\n\
+             This period saw {commits} commits across {repos} repositories, \
+             with {adds} lines added and {dels} lines removed.\n\n\
+             ## Technical Activity by Area\n\n",
+            project = project_name,
+            period = date_range,
+            commits = structured.metadata.total_commits_sanitized,
+            repos = structured.metadata.total_repos,
+            adds = metrics.total_additions,
+            dels = metrics.total_deletions,
+        );
+
+        for (i, cluster) in structured.commit_clusters.iter().enumerate() {
+            out.push_str(&format!(
+                "### Area {}: {} ({} commits)\n\n",
+                i + 1,
+                cluster.terms.first().cloned().unwrap_or_else(|| "misc".to_string()),
+                cluster.commits.len()
+            ));
+            for commit in cluster.commits.iter().take(5) {
+                out.push_str(&format!("- {} (`{}`)\n", commit.title, commit.id));
+            }
+            out.push('\n');
+        }
+
+        if !structured.milestone_markers.is_empty() {
+            out.push_str("## Prior Goals Status\n\n");
+            for m in &structured.milestone_markers {
+                out.push_str(&format!("- [{}] {}\n", m.status_hint, m.text));
+            }
+            out.push('\n');
+        }
+
+        out.push_str("## Next Steps\n\n*(Derived from cluster analysis - review and expand)*\n");
+        out
     }
 }

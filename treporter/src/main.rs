@@ -7,6 +7,7 @@ mod generators;
 mod cli;
 mod preprocessor;
 mod ollama;
+mod retry_loop;
 mod simple_pipeline;
 mod direct_file_processor;
 mod structured_extractor;

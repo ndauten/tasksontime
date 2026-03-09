@@ -13,6 +13,7 @@ pub mod generators;
 pub mod cli;
 pub mod preprocessor;
 pub mod ollama;
+pub mod retry_loop;
 pub mod simple_pipeline;
 pub mod direct_file_processor;
 pub mod structured_extractor;
