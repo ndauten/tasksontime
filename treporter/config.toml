@@ -44,3 +44,9 @@ sections = ["highlights", "metrics", "status", "priorities"]
 base_directory = "./reports"
 date_format = "%Y-%m"
 filename_template = "{project}_{type}_{date}"
+
+[reporting]
+report_language = "en"
+token_budget = 8000
+# prior_plan_path = "docs/last_month_plan.md"
+# prior_report_path = "reports/2026-02_monthly.md"

@@ -11,6 +11,7 @@ pub struct Config {
     pub llm: LlmConfig,
     pub templates: TemplatesConfig,
     pub output: OutputConfig,
+    pub reporting: Option<ReportingConfig>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -131,6 +132,19 @@ pub struct OutputConfig {
     pub base_directory: String,
     pub date_format: String,
     pub filename_template: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ReportingConfig {
+    /// Output language for all LLM-generated text (e.g. "en")
+    pub report_language: String,
+    /// Max input tokens per LLM call in the inductive phase (~4 bytes each)
+    pub token_budget: usize,
+    /// Path to last month's plan/notes markdown file (optional)
+    pub prior_plan_path: Option<String>,
+    /// Path to last month's generated report markdown file (optional)
+    /// Used to extract milestone markers for plan-shift detection
+    pub prior_report_path: Option<String>,
 }
 
 impl Config {
@@ -367,6 +381,20 @@ date_format = "%Y-%m"
 # Template for report filenames
 # Available variables: {{project_name}}, {{template_name}}, {{date}}
 filename_template = "{{project_name}}_{{template_name}}_{{date}}"
+
+# ============================================================================
+# REPORTING (de-inductive pipeline)
+# ============================================================================
+[reporting]
+# Output language for all LLM-generated text
+report_language = "en"
+# Max input tokens per LLM call (deductive output fed to inductive phase)
+# 8000 = suitable for 70b+ models; use 4000 for 13b or smaller
+token_budget = 8000
+# Path to last month's plan/notes markdown (seeds theme detection)
+# prior_plan_path = "docs/last_month_plan.md"
+# Path to last month's generated report (used to extract milestone markers)
+# prior_report_path = "reports/2025-01_monthly.md"
 
 # ============================================================================
 # GETTING STARTED
