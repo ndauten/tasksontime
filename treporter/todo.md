@@ -9,6 +9,9 @@ Setup:
 - [x] add option to pull tokens from some default config location: maybe ~/.chronopulse? ✅
 - [x] enhance setup wizard with project configuration 2025-11-4 ✅
 - [x] setup wizard to autofind all recursive repos from the current git repo root
+- [x] Add feature that asks the user to select if a given found repository should be added to the local list
+- [ ] refactor: move setup wizard out of the credentials.rs module and into it's own
+- [ ] make it default to none repositories for gitlab/github if none given; ask for initial repo
 
 Collect+Summarize:
 - [ ] All branches vs single default master for repositories

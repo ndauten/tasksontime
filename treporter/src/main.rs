@@ -9,6 +9,8 @@ mod preprocessor;
 mod ollama;
 mod simple_pipeline;
 mod direct_file_processor;
+mod structured_extractor;
+mod multistage_pipeline;
 
 use anyhow::Result;
 use clap::Parser;
@@ -234,6 +236,11 @@ async fn main() -> Result<()> {
             let pipeline = simple_pipeline::SimplePipeline::new(true);
             let report_path = pipeline.generate_report(&data, output.as_deref()).await?;
             println!("📄 New report generated: {}", report_path);
+        },
+        
+        Commands::LocalReport { data_file: _, output: _, export_structured: _, export_stages: _ } => {
+            println!("⚠️  local-report is not yet implemented (Phase 6 of monthly-reporting-plan.md)");
+            println!("   Use 'report' command for now, or run 'make monthly'.");
         },
         
         Commands::DirectAnalysis { ref input, ref output } => {

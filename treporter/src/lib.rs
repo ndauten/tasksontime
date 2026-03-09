@@ -14,6 +14,9 @@ pub mod cli;
 pub mod preprocessor;
 pub mod ollama;
 pub mod simple_pipeline;
+pub mod direct_file_processor;
+pub mod structured_extractor;
+pub mod multistage_pipeline;
 
 pub use config::Config;
 pub use types::CollectedData;

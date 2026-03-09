@@ -90,6 +90,25 @@ pub enum Commands {
         output: Option<String>,
     },
     
+    /// Generate report using multi-stage local LLM pipeline (optimized for local models)
+    LocalReport {
+        /// Use previously collected data file
+        #[arg(short, long)]
+        data_file: Option<String>,
+        
+        /// Output filename
+        #[arg(short, long)]
+        output: Option<String>,
+        
+        /// Export structured data as JSON
+        #[arg(long)]
+        export_structured: bool,
+        
+        /// Export stage-by-stage outputs for debugging
+        #[arg(long)]
+        export_stages: bool,
+    },
+    
     /// Analyze any file directly with LLM (no preprocessing)
     DirectAnalysis {
         /// Input file to analyze
