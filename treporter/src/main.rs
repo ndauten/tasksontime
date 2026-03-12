@@ -20,6 +20,7 @@ use collectors::DataCollector;
 use config::Config;
 use generators::ReportGenerator;
 use types::CollectedData;
+use chrono;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -239,9 +240,87 @@ async fn main() -> Result<()> {
             println!("📄 New report generated: {}", report_path);
         },
         
-        Commands::LocalReport { data_file: _, output: _, export_structured: _, export_stages: _ } => {
-            println!("⚠️  local-report is not yet implemented (Phase 6 of monthly-reporting-plan.md)");
-            println!("   Use 'report' command for now, or run 'make monthly'.");
+        Commands::LocalReport { ref data_file, ref output, export_structured, export_stages: _ } => {
+            // De-inductive pipeline:
+            //   1. Load (or collect) data
+            //   2. Sanitize (dedup, bot-filter, token budget) — deductive
+            //   3. Cluster (tf-idf) + milestone extraction — deductive
+            //   4. Synthesize with LLM via RetryLoop — inductive
+
+            // ---- 1. Load data ----
+            let data = match data_file {
+                Some(file) => {
+                    println!("📂 Loading data from: {}", file);
+                    CollectedData::load_from_file(file)?
+                }
+                None => {
+                    let (start_date, end_date) = cli.parse_date_range()?;
+                    println!("🔍 Collecting data from {} to {}",
+                        start_date.format("%Y-%m-%d"), end_date.format("%Y-%m-%d"));
+                    let collector = collectors::DataCollector::new(config.clone());
+                    collector.collect(start_date, end_date).await?
+                }
+            };
+
+            // ---- 2. Sanitize ----
+            let token_budget = config.reporting.as_ref()
+                .map(|r| r.token_budget)
+                .unwrap_or(8000);
+            let preprocessor = preprocessor::DataPreprocessor::new();
+            let sanitized = preprocessor.sanitize(&data, token_budget);
+            println!("🔧 Sanitized: {} commits ({} after dedup/bot-filter)",
+                data.git_commits.len() + data.gitlab.commits.len() + data.github.commits.len(),
+                sanitized.commits.len());
+
+            // ---- 3. Cluster + milestone extraction ----
+            let prior_report_text: Option<String> = config.reporting.as_ref()
+                .and_then(|r| r.prior_report_path.as_ref())
+                .and_then(|p| std::fs::read_to_string(p).ok());
+            let extractor = structured_extractor::StructuredDataExtractor::new();
+            let structured = extractor.extract(&sanitized, prior_report_text.as_deref());
+            println!("🔬 Clustered into {} work areas, {} milestone markers",
+                structured.commit_clusters.len(), structured.milestone_markers.len());
+
+            // Optionally export structured JSON
+            if export_structured {
+                let json_path = output.as_deref()
+                    .map(|o| format!("{}_structured.json", o.trim_end_matches(".md")))
+                    .unwrap_or_else(|| "local_report_structured.json".to_string());
+                std::fs::write(&json_path, extractor.to_json(&structured))?;
+                println!("📦 Exported structured data to: {}", json_path);
+            }
+
+            // ---- 4. Synthesize ----
+            let date_range = format!("{} – {}",
+                data.metadata.date_range_start.format("%Y-%m-%d"),
+                data.metadata.date_range_end.format("%Y-%m-%d"));
+            let prior_plan_text: Option<String> = config.reporting.as_ref()
+                .and_then(|r| r.prior_plan_path.as_ref())
+                .and_then(|p| std::fs::read_to_string(p).ok());
+
+            let llm_client = llm::LLMClient::new(config.clone());
+            let report = llm_client.synthesize_with_structured_data(
+                &structured,
+                &date_range,
+                prior_plan_text.as_deref(),
+            ).await?;
+
+            // ---- Write output ----
+            let out_path = output.as_deref()
+                .map(|o| o.to_string())
+                .unwrap_or_else(|| {
+                    let now = chrono::Utc::now();
+                    format!("reports/{}_{}_monthly.md",
+                        now.format("%Y-%m"),
+                        config.project.name
+                            .to_lowercase()
+                            .replace(' ', "_"))
+                });
+            if let Some(dir) = std::path::Path::new(&out_path).parent() {
+                std::fs::create_dir_all(dir)?;
+            }
+            std::fs::write(&out_path, &report)?;
+            println!("📄 Report written to: {}", out_path);
         },
         
         Commands::DirectAnalysis { ref input, ref output } => {

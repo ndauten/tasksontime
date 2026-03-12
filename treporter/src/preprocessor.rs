@@ -606,3 +606,137 @@ impl DataPreprocessor {
             || lower.contains("gitlab-bot")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{CollectedData, GitCommitData};
+    use chrono::Utc;
+
+    fn make_data(commits: Vec<GitCommitData>) -> CollectedData {
+        let mut d = CollectedData::default();
+        d.git_commits = commits;
+        d
+    }
+
+    fn git_commit(hash: &str, author: &str, message: &str) -> GitCommitData {
+        GitCommitData {
+            hash: hash.to_string(),
+            author_name: author.to_string(),
+            author_email: format!("{}@test.com", author),
+            message: message.to_string(),
+            timestamp: Utc::now(),
+            repo_path: "/repos/myproject".to_string(),
+            files_changed: vec!["src/main.rs".to_string()],
+        }
+    }
+
+    // ---- dedup ----
+
+    #[test]
+    fn test_dedup_same_hash() {
+        let p = DataPreprocessor::new();
+        let data = make_data(vec![
+            git_commit("abc123", "alice", "add feature"),
+            git_commit("abc123", "alice", "add feature"),  // exact duplicate
+        ]);
+        let result = p.sanitize(&data, 100_000);
+        assert_eq!(result.commits.len(), 1, "duplicate hash should be removed");
+    }
+
+    #[test]
+    fn test_dedup_different_hashes_kept() {
+        let p = DataPreprocessor::new();
+        let data = make_data(vec![
+            git_commit("aaa", "alice", "add auth"),
+            git_commit("bbb", "alice", "fix auth"),
+        ]);
+        let result = p.sanitize(&data, 100_000);
+        assert_eq!(result.commits.len(), 2);
+    }
+
+    // ---- bot filter ----
+
+    #[test]
+    fn test_bot_filter_dependabot() {
+        let p = DataPreprocessor::new();
+        let data = make_data(vec![
+            git_commit("aaa", "dependabot[bot]", "bump serde to 1.0.2"),
+            git_commit("bbb", "alice", "fix login"),
+        ]);
+        let result = p.sanitize(&data, 100_000);
+        assert_eq!(result.commits.len(), 1);
+        assert_eq!(result.commits[0].author, "alice");
+    }
+
+    #[test]
+    fn test_bot_filter_renovate() {
+        let p = DataPreprocessor::new();
+        let data = make_data(vec![
+            git_commit("aaa", "renovate", "update deps"),
+        ]);
+        let result = p.sanitize(&data, 100_000);
+        assert!(result.commits.is_empty(), "renovate commits should be dropped");
+    }
+
+    #[test]
+    fn test_bot_filter_generic_bot_suffix() {
+        let p = DataPreprocessor::new();
+        let data = make_data(vec![
+            git_commit("aaa", "github-actions[bot]", "ci: bump version"),
+            git_commit("bbb", "bob", "feat: add dashboard"),
+        ]);
+        let result = p.sanitize(&data, 100_000);
+        assert_eq!(result.commits.len(), 1);
+        assert_eq!(result.commits[0].author, "bob");
+    }
+
+    // ---- truncation ----
+
+    #[test]
+    fn test_message_truncated_to_600_chars() {
+        let p = DataPreprocessor::new();
+        let long_msg = "x".repeat(1200);
+        let mut commit = git_commit("aaa", "alice", &long_msg);
+        let data = make_data(vec![commit]);
+        let result = p.sanitize(&data, 100_000);
+        assert_eq!(result.commits[0].full_message.len(), 600);
+    }
+
+    #[test]
+    fn test_files_truncated_to_10() {
+        let p = DataPreprocessor::new();
+        let mut commit = git_commit("aaa", "alice", "big commit");
+        commit.files_changed = (0..25).map(|i| format!("src/file{}.rs", i)).collect();
+        let data = make_data(vec![commit]);
+        let result = p.sanitize(&data, 100_000);
+        assert_eq!(result.commits[0].files_changed.len(), 10);
+    }
+
+    // ---- token budget ----
+
+    #[test]
+    fn test_budget_drops_commits() {
+        let p = DataPreprocessor::new();
+        // Each commit title is "add feature X" (~14 chars), budget of 2 tokens
+        // (8 chars total) means almost all should be dropped.
+        let commits: Vec<GitCommitData> = (0..50)
+            .map(|i| git_commit(&format!("{:08x}", i), "alice", &format!("add feature {}", i)))
+            .collect();
+        let data = make_data(commits);
+        let result = p.sanitize(&data, 2); // 2-token budget = ~8 chars
+        assert!(result.commits.len() < 50, "budget should have dropped some commits");
+    }
+
+    #[test]
+    fn test_generous_budget_keeps_all() {
+        let p = DataPreprocessor::new();
+        let commits: Vec<GitCommitData> = (0..10)
+            .map(|i| git_commit(&format!("{:08x}", i), "alice", &format!("fix bug {}", i)))
+            .collect();
+        let count = commits.len();
+        let data = make_data(commits);
+        let result = p.sanitize(&data, 100_000);
+        assert_eq!(result.commits.len(), count, "all commits should survive generous budget");
+    }
+}

@@ -379,6 +379,71 @@ mod tests {
     }
 
     #[test]
+    fn test_cluster_repos_metadata() {
+        let extractor = StructuredDataExtractor::new();
+        let data = SanitizedData {
+            commits: vec![
+                make_commit("aaa", "add feature", "api"),
+                make_commit("bbb", "fix bug", "db"),
+                make_commit("ccc", "add tests", "api"),
+            ],
+            mrs_and_prs: vec![],
+            issues: vec![],
+        };
+        let result = extractor.extract(&data, None);
+        assert_eq!(result.metadata.total_commits_sanitized, 3);
+        // Should detect 2 distinct repos
+        assert_eq!(result.metadata.total_repos, 2);
+        let mut repos = result.metadata.repos.clone();
+        repos.sort();
+        assert_eq!(repos, vec!["api", "db"]);
+    }
+
+    #[test]
+    fn test_all_commits_appear_in_some_cluster() {
+        let extractor = StructuredDataExtractor::new();
+        let commits = vec![
+            make_commit("a1", "implement oauth login", "api"),
+            make_commit("a2", "implement refresh token", "api"),
+            make_commit("b1", "fix sql injection", "db"),
+            make_commit("b2", "fix race condition", "db"),
+            make_commit("c1", "update readme docs", "docs"),
+        ];
+        let commit_ids: Vec<String> = commits.iter().map(|c| c.hash.clone()).collect();
+        let data = SanitizedData { commits, mrs_and_prs: vec![], issues: vec![] };
+        let result = extractor.extract(&data, None);
+
+        // Every commit id must appear in exactly one cluster
+        let mut found_ids: Vec<String> = result.commit_clusters
+            .iter()
+            .flat_map(|cl| cl.commits.iter().map(|c| c.id.clone()))
+            .collect();
+        found_ids.sort();
+        let mut expected = commit_ids.clone();
+        expected.sort();
+        assert_eq!(found_ids, expected, "every commit must appear in a cluster");
+    }
+
+    #[test]
+    fn test_summary_metrics_correct() {
+        let extractor = StructuredDataExtractor::new();
+        let mut c1 = make_commit("a", "add feature", "repo");
+        c1.additions = 100; c1.deletions = 10;
+        let mut c2 = make_commit("b", "fix bug", "repo");
+        c2.additions = 20; c2.deletions = 5;
+        let data = SanitizedData {
+            commits: vec![c1, c2],
+            mrs_and_prs: vec!["[merged] Add retry logic".to_string()],
+            issues: vec!["[closed] Crash on empty input".to_string(), "[open] Slow query".to_string()],
+        };
+        let result = extractor.extract(&data, None);
+        assert_eq!(result.summary_metrics.total_additions, 120);
+        assert_eq!(result.summary_metrics.total_deletions, 15);
+        assert_eq!(result.summary_metrics.total_mrs_and_prs, 1);
+        assert_eq!(result.summary_metrics.total_issues, 2);
+    }
+
+    #[test]
     fn test_milestone_extraction_checkboxes() {
         let extractor = StructuredDataExtractor::new();
         let report = "## Goals\n- [x] Deploy new API\n- [ ] Write integration tests\n";
@@ -386,5 +451,28 @@ mod tests {
         assert_eq!(markers.len(), 2);
         assert_eq!(markers[0].status_hint, "COMPLETED");
         assert_eq!(markers[1].status_hint, "IN_PROGRESS");
+    }
+
+    #[test]
+    fn test_milestone_extraction_explicit_label() {
+        let extractor = StructuredDataExtractor::new();
+        // "Milestone: <text> — completed" style lines
+        let report = "Milestone: Deploy staging environment completed\n\
+                      Milestone: Write load tests in progress\n";
+        let markers = extractor.extract_milestones(report);
+        assert!(!markers.is_empty(), "should find at least one explicit milestone");
+        let completed = markers.iter().any(|m| m.status_hint == "COMPLETED");
+        assert!(completed, "should detect completed status");
+        let in_progress = markers.iter().any(|m| m.status_hint == "IN_PROGRESS");
+        assert!(in_progress, "should detect in-progress status");
+    }
+
+    #[test]
+    fn test_empty_input_produces_empty_clusters() {
+        let extractor = StructuredDataExtractor::new();
+        let data = SanitizedData { commits: vec![], mrs_and_prs: vec![], issues: vec![] };
+        let result = extractor.extract(&data, None);
+        assert!(result.commit_clusters.is_empty());
+        assert_eq!(result.metadata.total_commits_sanitized, 0);
     }
 }

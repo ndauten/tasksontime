@@ -100,6 +100,52 @@ setup:
 	@echo "Please edit .env with your API tokens"
 	@echo "Then run 'make dev-test' to verify setup"
 
+# ------------------------------------------------------------------ #
+# Monthly reporting (de-inductive pipeline)                          #
+# ------------------------------------------------------------------ #
+MONTH ?= $(shell date +%Y-%m)
+DATA_FILE ?= collected_data.json
+
+## Collect + generate monthly report in one step (default mode: local Ollama)
+monthly:
+	@echo "📡 Collecting data for $(MONTH)..."
+	cargo run --release -- \
+		--from $(MONTH)-01 --to $(shell date +%Y-%m-%d) \
+		collect --output $(DATA_FILE)
+	@echo "🧠 Running de-inductive report pipeline..."
+	cargo run --release -- \
+		local-report --data-file $(DATA_FILE)
+
+## Deductive phase only — outputs structured JSON, no LLM call
+monthly-prep:
+	@echo "📡 Collecting data for $(MONTH)..."
+	cargo run --release -- \
+		--from $(MONTH)-01 --to $(shell date +%Y-%m-%d) \
+		collect --output $(DATA_FILE)
+	@echo "🔬 Running deductive phase only (structured JSON output)..."
+	cargo run --release -- \
+		local-report --data-file $(DATA_FILE) --export-structured
+
+## Show what would be collected without hitting LLM
+monthly-dry:
+	@echo "🔍 Dry run — collecting and sanitizing only..."
+	cargo run -- \
+		--from $(MONTH)-01 --to $(shell date +%Y-%m-%d) \
+		test
+
+## Generate from a specific saved data file
+monthly-from-file:
+	cargo run --release -- \
+		local-report --data-file $(DATA_FILE)
+
+## Generate and keep the intermediate structured JSON
+monthly-debug:
+	cargo run --release -- \
+		local-report --data-file $(DATA_FILE) \
+		--export-structured --export-stages
+
+.PHONY: monthly monthly-prep monthly-dry monthly-from-file monthly-debug
+
 # Help
 help:
 	@echo "Available commands:"
